@@ -3,13 +3,13 @@ import asyncio
 from telegram import Bot
 from scraper import fetch_tenders
 
-# استبدلي التوكن والـ CHAT_ID بقيمكِ الحقيقية بين التنصيص
-BOT_TOKEN = os.getenv("BOT_TOKEN", "ضعي_التوكن_هنا")
-CHAT_ID = os.getenv("CHAT_ID", "ضعي_CHAT_ID_هنا")
+# يقرأ التوكن سواء كان اسمه BOT_TOKEN أو TELEGRAM_TOKEN في ملف الورك فلو
+BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 async def send_updates():
-    if not BOT_TOKEN or BOT_TOKEN == "ضعي_التوكن_هنا":
-        print("خطأ: لم يتم التعرف على BOT_TOKEN")
+    if not BOT_TOKEN:
+        print("خطأ: لم يتم العثور على التوكن!")
         return
 
     bot = Bot(token=BOT_TOKEN)
