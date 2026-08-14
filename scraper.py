@@ -90,3 +90,26 @@ def fetch_ncp_tenders():
             items = soup.find_all(['div', 'a', 'h4'], limit=5)
             for item in items:
                 title = clean_text(item.get_text())
+                if ("صحية" in title or "مستشفى" in title or "صحة" in title or "تخصيص" in title) and len(title) > 10:
+                    tenders.append(f"🏛️ المركز الوطني للتخصيص:**\n📌 **الفرصة: {title[:120]}\n🔗 [عرض الفرص]({url})")
+                    if len(tenders) == 2:
+                        break
+    except Exception as e:
+        print(f"خطأ في المركز الوطني للتخصيص: {e}")
+    return tenders
+
+def fetch_tenders():
+    """تجميع النتائج من جميع المصادر المعتمدة"""
+    all_results = []
+    all_results.extend(fetch_etimad_tenders())
+    all_results.extend(fetch_nupco_tenders())
+    all_results.extend(fetch_tanafus_tenders())
+    all_results.extend(fetch_ncp_tenders())
+    return all_results
+
+if __name__ == "__main__":
+    results = fetch_tenders()
+    print(f"تم العثور على {len(results)} مناقصة ومنافسة:")
+    for res in results:
+        print("---")
+        print(res)
