@@ -1,12 +1,10 @@
 import os
 import requests
-
-# استدعاء دالة السحب من ملف scraper.py
 from scraper import fetch_tenders
 
-# تعيين بيانات البوت والقناة
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_BOT_TOKEN_HERE")
-CHAT_ID = os.getenv("CHAT_ID", "YOUR_CHAT_ID_HERE")
+# البيانات الخاصة بالبوت
+TELEGRAM_TOKEN = "8922241349:AAFJ9hrgULi1BHY8WElK3cgBPM-5Cu2pTSY"
+CHAT_ID = "8002731486"
 
 def send_telegram_message(message):
     """
@@ -40,7 +38,7 @@ def main():
             send_telegram_message(message)
     else:
         # رسالة تجريبية للتأكد من عمل البوت
-        send_telegram_message(" البوت يعمل بنجاح، وجاري مراقبة المناقصات الجديدة!")
+        send_telegram_message("🤖 البوت يعمل بنجاح، وجاري مراقبة المناقصات الجديدة!")
 
 if name == "__main__":
     main()
