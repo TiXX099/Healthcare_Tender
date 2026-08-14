@@ -30,5 +30,5 @@ async def send_updates():
 def main():
     asyncio.run(send_updates())
 
-if name == "__main__":
+if __name__ == "__main__":
     main()
