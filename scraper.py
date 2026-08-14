@@ -75,7 +75,7 @@ def fetch_tenders(url=None):
     
     return all_results
 
-if name == "__main__":
+if __name__ == "__main__":
     results = fetch_tenders()
     print(f"تم العثور على {len(results)} نتائج إجمالاً:")
     for res in results:
