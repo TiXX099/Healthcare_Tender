@@ -1,6 +1,4 @@
-def fetch_google_news_tenders():
-    """5. البحث العام المفلتر عبر قوقل"""
-    keywords = '("مناقصة" OR "توريد" OR "تأمين" OR "منافسة" OR "مختبر" OR "تحليل") AND ("مستلزمات طبية" OR "أجهزة طبية" OR "مستشفى" OR "مختبرات") AND (السعودية OR المملكة OR "وزارة الصحة" OR "تجمع صحي")'
+keywords = '("مناقصة" OR "توريد" OR "تأمين" OR "منافسة" OR "مختبر" OR "تحليل") AND ("مستلزمات طبية" OR "أجهزة طبية" OR "مستشفى" OR "مختبرات") AND (السعودية OR المملكة OR "وزارة الصحة" OR "تجمع صحي")'
     url = f"https://news.google.com/rss/search?q={quote(keywords)}&hl=ar&gl=SA&ceid=SA:ar"
     
     tenders = []
@@ -41,7 +39,7 @@ def fetch_spa_tenders():
     return tenders
 
 def fetch_tenders(url=None):
-    """تجميع كافة المصادر المعتمدة"""
+    """تجميع نتائج كافة المصادر المعتمدة"""
     all_results = []
     
     all_results.extend(fetch_etimad_tenders())
