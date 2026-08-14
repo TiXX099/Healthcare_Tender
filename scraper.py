@@ -35,7 +35,7 @@ def fetch_tenders(url=None):
         
     return tenders
 
-if name == "__main__":
+if __name__ == "__main__":
     results = fetch_tenders()
     print(f"تم العثور على {len(results)} نتائج.")
     for res in results:
