@@ -91,12 +91,11 @@ def fetch_ncp_tenders():
                     if len(tenders) == 1:
                         break
     except Exception as e:
-    except Exception as e:
         print(f"خطأ في المركز الوطني للتخصيص: {e}")
     return tenders
 
-def fetch_tenders():
-    """تجميع النتائج من جميع المصادر المعتمدة"""
+def fetch_tenders(url=None):
+    """دالة التجميع الرئيسية"""
     all_results = []
     all_results.extend(fetch_etimad_tenders())
     all_results.extend(fetch_nupco_tenders())
@@ -106,7 +105,7 @@ def fetch_tenders():
 
 if __name__ == "__main__":
     results = fetch_tenders()
-    print(f"تم العثور على {len(results)} مناقصة ومنافسة:")
+    print(f"تم جلب {len(results)} مناقصة:")
     for res in results:
         print("---")
         print(res)
