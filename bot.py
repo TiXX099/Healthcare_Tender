@@ -3,12 +3,16 @@ import asyncio
 from telegram import Bot
 from scraper import fetch_tenders
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+# استبدلي التوكن والـ CHAT_ID بقيمكِ الحقيقية بين التنصيص
+BOT_TOKEN = os.getenv("BOT_TOKEN", "ضعي_التوكن_هنا")
+CHAT_ID = os.getenv("CHAT_ID", "ضعي_CHAT_ID_هنا")
 
 async def send_updates():
+    if not BOT_TOKEN or BOT_TOKEN == "ضعي_التوكن_هنا":
+        print("خطأ: لم يتم التعرف على BOT_TOKEN")
+        return
+
     bot = Bot(token=BOT_TOKEN)
-    # استدعاء الدالة بدون تمرير أي متغير متضارب
     tenders = fetch_tenders()
     
     if not tenders:
