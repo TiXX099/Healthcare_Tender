@@ -8,11 +8,16 @@ HEADERS = {
 }
 
 def fetch_google_news_tenders():
-    """1. البحث الشامل المخصص للسعودية فقط"""
-    keywords = '("مناقصة صحية" OR "مستلزمات طبية" OR "مستشفى") AND (السعودية OR الرياض OR جدة OR "وزارة الصحة")'
+    """1. البحث الشامل المخصص لكل مناطق ومدن المملكة"""
+    # كلمات بحث تضمن تغطية كل مدن المملكة وتجمعاتها الصحية بدون حصر مدن معينة
+    keywords = '("مناقصة صحية" OR "مستلزمات طبية" OR "مستشفى") AND (السعودية OR المملكة OR "وزارة الصحة" OR "تجمع صحي")'
     url = f"https://news.google.com/rss/search?q={quote(keywords)}&hl=ar&gl=SA&ceid=SA:ar"
     
-    EXCLUDE_WORDS = ["البحرين", "دينار", "قسنطينة", "الجزائر", "لبنان", "الكويت", "مصر", "تونس", "المغرب"]
+    # قائمة الكلمات والأعلام لاستبعاد أي دولة أخرى فوراً
+    EXCLUDE_WORDS = [
+        "البحرين", "دينار", "قسنطينة", "الجزائر", "لبنان", 
+        "الكويت", "مصر", "تونس", "المغرب", "عُمان", "الأردن", "العراق"
+    ]
     
     tenders = []
     try:
@@ -21,13 +26,13 @@ def fetch_google_news_tenders():
             title = entry.title
             link = entry.link
             
-            # فحص استبعاد الدول الأخرى
+            # فحص استبعاد الدول والعملات الأخرى
             if any(bad_word in title for bad_word in EXCLUDE_WORDS):
                 continue
                 
             tenders.append(f"🌐 أخبار ومناقصات (السعودية): {title}\n🔗 [رابط الخبر/المنصّة]({link})")
             
-            # إيقاف التجميع عند أحدث 4 نتائج حقيقية ومفلترة
+            # التوقف عند أحدث 4 نتائج مفلترة ومحلية
             if len(tenders) == 4:
                 break
                 
@@ -56,7 +61,7 @@ def fetch_spa_tenders():
     return tenders
 
 def fetch_etimad_tenders():
-    """3. منصة اعتماد"""
+    """3. منصة اعتماد الحكومية"""
     url = "https://monaqasat.etimad.sa/Tender/AllTendersForVisitor?SearchKey=%D8%B5%D8%AD%D8%A9"
     tenders = []
     try:
@@ -75,13 +80,13 @@ def fetch_etimad_tenders():
     return tenders
 
 def fetch_tenders(url=None):
-    """تجميع البحث العام + المصادر المحددة"""
+    """تجميع نتائج البحث السعودي الشامل والمصادر المباشرة"""
     all_results = []
     
-    # 🔍 البحث المفلتر الخاص بالسعودية
+    # 🔍 البحث المفلتر لكل مدن السعودية
     all_results.extend(fetch_google_news_tenders())
     
-    # 🏛️ المصادر الرسمية
+    # 🏛️ المصادر السعودية المباشرة
     all_results.extend(fetch_spa_tenders())
     all_results.extend(fetch_etimad_tenders())
     
