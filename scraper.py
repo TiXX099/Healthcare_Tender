@@ -7,7 +7,7 @@ HEADERS = {
 }
 
 def clean_text(text):
-    """تنظيف النص من المسافات الزائدة والسطور الفارغة"""
+    """تنظيف النص من المسافات الزائدة"""
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
@@ -90,6 +90,7 @@ def fetch_ncp_tenders():
                     tenders.append(f"🏛️ المركز الوطني للتخصيص:**\n📌 **الفرصة: {title[:120]}\n🔗 [تفاصيل الفرصة]({url})")
                     if len(tenders) == 1:
                         break
+    except Exception as e:
     except Exception as e:
         print(f"خطأ في المركز الوطني للتخصيص: {e}")
     return tenders
