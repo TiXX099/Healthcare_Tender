@@ -1,23 +1,7 @@
-import requests
-from bs4 import BeautifulSoup
-import feedparser
-from urllib.parse import quote
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-}
-
 def fetch_google_news_tenders():
-    """1. البحث الشامل المخصص لكل مناطق ومدن المملكة"""
-    # كلمات بحث تضمن تغطية كل مدن المملكة وتجمعاتها الصحية بدون حصر مدن معينة
-    keywords = '("مناقصة صحية" OR "مستلزمات طبية" OR "مستشفى") AND (السعودية OR المملكة OR "وزارة الصحة" OR "تجمع صحي")'
+    """5. البحث العام المفلتر عبر قوقل"""
+    keywords = '("مناقصة" OR "توريد" OR "تأمين" OR "منافسة" OR "مختبر" OR "تحليل") AND ("مستلزمات طبية" OR "أجهزة طبية" OR "مستشفى" OR "مختبرات") AND (السعودية OR المملكة OR "وزارة الصحة" OR "تجمع صحي")'
     url = f"https://news.google.com/rss/search?q={quote(keywords)}&hl=ar&gl=SA&ceid=SA:ar"
-    
-    # قائمة الكلمات والأعلام لاستبعاد أي دولة أخرى فوراً
-    EXCLUDE_WORDS = [
-        "البحرين", "دينار", "قسنطينة", "الجزائر", "لبنان", 
-        "الكويت", "مصر", "تونس", "المغرب", "عُمان", "الأردن", "العراق"
-    ]
     
     tenders = []
     try:
@@ -26,75 +10,52 @@ def fetch_google_news_tenders():
             title = entry.title
             link = entry.link
             
-            # فحص استبعاد الدول والعملات الأخرى
-            if any(bad_word in title for bad_word in EXCLUDE_WORDS):
-                continue
-                
-            tenders.append(f"🌐 أخبار ومناقصات (السعودية): {title}\n🔗 [رابط الخبر/المنصّة]({link})")
+            if is_targeted_tender(title):
+                tenders.append(f"🌐 أخبار ومناقصات (السعودية): {title}\n🔗 [رابط الخبر/المنصّة]({link})")
             
-            # التوقف عند أحدث 4 نتائج مفلترة ومحلية
-            if len(tenders) == 4:
+            if len(tenders) == 3:
                 break
-                
     except Exception as e:
-        print(f"خطأ في البحث العام عبر قوقل: {e}")
+        print(f"خطأ في قوقل: {e}")
         
     return tenders
 
 def fetch_spa_tenders():
-    """2. وكالة الأنباء السعودية (واس)"""
+    """6. وكالة الأنباء السعودية (واس)"""
     url = "https://www.spa.gov.sa/ar/search?q=%D9%85%D9%86%D8%A7%D9%82%D8%B5%D8%A9+%D8%B5%D8%AD%D9%8A%D8%A9"
     tenders = []
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            articles = soup.find_all('a', class_='news-title', limit=2)
+            articles = soup.find_all('a', class_='news-title', limit=3)
             for art in articles:
                 title = art.get_text(strip=True)
-                link = art.get('href', '')
-                if not link.startswith('http'):
-                    link = f"https://www.spa.gov.sa{link}"
-                tenders.append(f"🏛️ واس: {title}\n🔗 [رابط الخبر]({link})")
+                if is_targeted_tender(title):
+                    link = art.get('href', '')
+                    if not link.startswith('http'):
+                        link = f"https://www.spa.gov.sa{link}"
+                    tenders.append(f"🏛️ واس: {title}\n🔗 [رابط الخبر]({link})")
     except Exception as e:
         print(f"خطأ في واس: {e}")
     return tenders
 
-def fetch_etimad_tenders():
-    """3. منصة اعتماد الحكومية"""
-    url = "https://monaqasat.etimad.sa/Tender/AllTendersForVisitor?SearchKey=%D8%B5%D8%AD%D8%A9"
-    tenders = []
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            cards = soup.find_all('div', class_='card-body', limit=2)
-            for card in cards:
-                title_tag = card.find('h3') or card.find('a')
-                if title_tag:
-                    title = title_tag.get_text(strip=True)
-                    link = "https://monaqasat.etimad.sa/Tender/AllTendersForVisitor"
-                    tenders.append(f"🟢 اعتماد: {title}\n🔗 [منصة اعتماد]({link})")
-    except Exception as e:
-        print(f"خطأ في اعتماد: {e}")
-    return tenders
-
 def fetch_tenders(url=None):
-    """تجميع نتائج البحث السعودي الشامل والمصادر المباشرة"""
+    """تجميع كافة المصادر المعتمدة"""
     all_results = []
     
-    # 🔍 البحث المفلتر لكل مدن السعودية
-    all_results.extend(fetch_google_news_tenders())
-    
-    # 🏛️ المصادر السعودية المباشرة
-    all_results.extend(fetch_spa_tenders())
     all_results.extend(fetch_etimad_tenders())
+    all_results.extend(fetch_nupco_tenders())
+    all_results.extend(fetch_tanafus_tenders())
+    all_results.extend(fetch_ncp_tenders())
+    all_results.extend(fetch_google_news_tenders())
+    all_results.extend(fetch_spa_tenders())
     
     return all_results
 
 if __name__ == "__main__":
     results = fetch_tenders()
-    print(f"تم العثور على {len(results)} نتائج مفلترة:")
+    print(f"تم العثور على {len(results)} نتائج مطابقة:")
     for res in results:
         print("---")
         print(res)
