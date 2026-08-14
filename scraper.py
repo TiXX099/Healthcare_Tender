@@ -21,11 +21,11 @@ EXCLUDE_WORDS = [
 ]
 
 def is_targeted_tender(title):
-if any(bad_word in title for bad_word in EXCLUDE_WORDS):
-return False
-if any(good_word in title for good_word in TARGET_KEYWORDS):
-return True
-return False
+    if any(bad_word in title for bad_word in EXCLUDE_WORDS):
+        return False
+    if any(good_word in title for good_word in TARGET_KEYWORDS):
+        return True
+    return False
 
 def fetch_etimad_tenders():
 """1. منصة اعتماد الحكومية"""
