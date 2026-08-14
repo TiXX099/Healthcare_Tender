@@ -1,48 +1,34 @@
 import os
-import requests
+import asyncio
+from telegram import Bot
 from scraper import fetch_tenders
 
-# قراءة البيانات بأمان من متغيرات البيئة (Secrets)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
-def send_telegram_message(message):
-    """
-    دالة لإرسال رسالة نصية إلى تليجرام
-    """
-    if not TELEGRAM_TOKEN or not CHAT_ID:
-        print("خطأ: لم يتم العثور على TELEGRAM_TOKEN أو CHAT_ID في متغيرات البيئة!")
+async def send_updates():
+    bot = Bot(token=BOT_TOKEN)
+    # استدعاء الدالة بدون تمرير أي متغير متضارب
+    tenders = fetch_tenders()
+    
+    if not tenders:
+        print("لا توجد تحديثات جديدة.")
         return
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    
-    try:
-        response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            print("تم إرسال التنبيه إلى تليجرام بنجاح!")
-        else:
-            print(f"فشل الإرسال: {response.text}")
-    except Exception as e:
-        print(f"حدث خطأ أثناء الإرسال: {e}")
+    for tender in tenders:
+        try:
+            await bot.send_message(
+                chat_id=CHAT_ID,
+                text=tender,
+                parse_mode="Markdown",
+                disable_web_page_preview=True
+            )
+            await asyncio.sleep(1)
+        except Exception as e:
+            print(f"خطأ أثناء الإرسال: {e}")
 
 def main():
-    # 1. جلب المناقصات باستخدام السكرابر
-    target_url = "https://example.com"
-    tenders = fetch_tenders(target_url)
-    
-    # 2. إرسال ملخص أو تنبيه للتليجرام
-    if tenders:
-        for tender in tenders:
-            message = f"📢 **مناقصة جديدة!**\n\n{tender}"
-            send_telegram_message(message)
-    else:
-        # رسالة تجريبية للتأكد من عمل البوت
-        send_telegram_message("🤖 البوت يعمل بنجاح، وجاري مراقبة المناقصات الجديدة!")
+    asyncio.run(send_updates())
 
-if __name__ == "__main__":
+if name == "__main__":
     main()
