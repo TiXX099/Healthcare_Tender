@@ -2,14 +2,18 @@ import os
 import requests
 from scraper import fetch_tenders
 
-# البيانات الخاصة بالبوت
-TELEGRAM_TOKEN = "8922241349:AAFJ9hrgULi1BHY8WElK3cgBPM-5Cu2pTSY"
-CHAT_ID = "8002731486"
+# قراءة البيانات بأمان من متغيرات البيئة (Secrets)
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+CHAT_ID = os.environ.get("CHAT_ID")
 
 def send_telegram_message(message):
     """
     دالة لإرسال رسالة نصية إلى تليجرام
     """
+    if not TELEGRAM_TOKEN or not CHAT_ID:
+        print("خطأ: لم يتم العثور على TELEGRAM_TOKEN أو CHAT_ID في متغيرات البيئة!")
+        return
+
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
