@@ -8,19 +8,32 @@ HEADERS = {
 }
 
 def fetch_google_news_tenders():
-    """1. البحث العام الشامل في قوقل أخبار عن أي مناقصة صحية في أي موقع"""
-    keywords = "مناقصة صحية OR منافسة مستلزمات طبية OR مستشفى"
+    """1. البحث الشامل المخصص للسعودية فقط"""
+    keywords = '("مناقصة صحية" OR "مستلزمات طبية" OR "مستشفى") AND (السعودية OR الرياض OR جدة OR "وزارة الصحة")'
     url = f"https://news.google.com/rss/search?q={quote(keywords)}&hl=ar&gl=SA&ceid=SA:ar"
+    
+    EXCLUDE_WORDS = ["البحرين", "دينار", "قسنطينة", "الجزائر", "لبنان", "الكويت", "مصر", "تونس", "المغرب"]
     
     tenders = []
     try:
         feed = feedparser.parse(url)
-        for entry in feed.entries[:4]: # أحدث 4 نتائج عامة
+        for entry in feed.entries:
             title = entry.title
             link = entry.link
-            tenders.append(f"🌐 بحث عام (Google): {title}\n🔗 [رابط الخبر/المنصّة]({link})")
+            
+            # فحص استبعاد الدول الأخرى
+            if any(bad_word in title for bad_word in EXCLUDE_WORDS):
+                continue
+                
+            tenders.append(f"🌐 أخبار ومناقصات (السعودية): {title}\n🔗 [رابط الخبر/المنصّة]({link})")
+            
+            # إيقاف التجميع عند أحدث 4 نتائج حقيقية ومفلترة
+            if len(tenders) == 4:
+                break
+                
     except Exception as e:
         print(f"خطأ في البحث العام عبر قوقل: {e}")
+        
     return tenders
 
 def fetch_spa_tenders():
@@ -65,10 +78,10 @@ def fetch_tenders(url=None):
     """تجميع البحث العام + المصادر المحددة"""
     all_results = []
     
-    # 🔍 البحث الشامل في قوقل لجميع المنصات والمواقع
+    # 🔍 البحث المفلتر الخاص بالسعودية
     all_results.extend(fetch_google_news_tenders())
     
-    # 🏛️ المصادر المباشرة
+    # 🏛️ المصادر الرسمية
     all_results.extend(fetch_spa_tenders())
     all_results.extend(fetch_etimad_tenders())
     
@@ -76,7 +89,7 @@ def fetch_tenders(url=None):
 
 if __name__ == "__main__":
     results = fetch_tenders()
-    print(f"تم العثور على {len(results)} نتائج إجمالاً:")
+    print(f"تم العثور على {len(results)} نتائج مفلترة:")
     for res in results:
         print("---")
         print(res)
