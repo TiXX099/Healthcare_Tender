@@ -18,7 +18,7 @@ def fetch_tenders(url=None):
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # البحث عن العناوين والروابط في نتائج البحث
-            articles = soup.find_all('a', class_='news-title', limit=3)  # نأخذ أحدث 3 أخبار
+            articles = soup.find_all('a', class_='news-title', limit=3)
             
             for article in articles:
                 title = article.get_text(strip=True)
@@ -36,7 +36,6 @@ def fetch_tenders(url=None):
     return tenders
 
 if name == "__main__":
-    # تجربة سريعة للتحقق من الكود
     results = fetch_tenders()
     print(f"تم العثور على {len(results)} نتائج.")
     for res in results:
