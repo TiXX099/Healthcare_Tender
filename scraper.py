@@ -28,22 +28,22 @@ def is_targeted_tender(title):
     return False
 
 def fetch_etimad_tenders():
-"""1. منصة اعتماد الحكومية"""
-url = "https://monaqasat.etimad.sa/Tender/AllTendersForVisitor?SearchKey=%D8%B5%D8%AD%D8%A9"
-tenders = []
-try:
-res = requests.get(url, headers=HEADERS, timeout=10)
-if res.status_code == 200:
-soup = BeautifulSoup(res.text, 'html.parser')
-cards = soup.find_all('div', class_='card-body', limit=3)
-for card in cards:
-title_tag = card.find('h3') or card.find('a')
-if title_tag:
-title = title_tag.get_text(strip=True)
-tenders.append(f"🟢 **اعتماد:** {title}\n🔗 [منصة اعتماد]({url})")
-except Exception as e:
-print(f"خطأ في اعتماد: {e}")
-return tenders
+    """1. منصة اعتماد الحكومية"""
+    url = "https://monaqasat.etimad.sa/Tender/AllTendersForVisitor?SearchKey=%D8%B5%D8%AD%D8%A9"
+    tenders = []
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=10)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, 'html.parser')
+            cards = soup.find_all('div', class_='card-body', limit=3)
+            for card in cards:
+                title_tag = card.find('h3') or card.find('a')
+                if title_tag:
+                    title = title_tag.get_text(strip=True)
+                    tenders.append(f"🟢 **اعتماد:** {title}\n🔗 [منصة اعتماد]({url})")
+    except Exception as e:
+        print(f"خطأ في اعتماد: {e}")
+    return tenders
 
 def fetch_nupco_tenders():
 """2. الشركة الوطنية للشراء الموحد (نوبكو - NUPCO)"""
