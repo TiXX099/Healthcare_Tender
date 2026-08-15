@@ -7,7 +7,7 @@ import logging
 from telegram import Bot
 from telegram.constants import ParseMode
  
-from scrapers import fetch_all_tenders
+from scraper import fetch_all_tenders
  
 logging.basicConfig(
     level=logging.INFO,
@@ -110,7 +110,7 @@ async def send_updates():
         await asyncio.sleep(1)
  
     save_seen_links(seen)
- 
+
  
 def main():
     asyncio.run(send_updates())
