@@ -1,269 +1,136 @@
 
 # -*- coding: utf-8 -*-
 """
-scrapers.py
-===========
-مسؤول فقط عن جلب المناقصات من المصادر المختلفة وإرجاعها بشكل منظم:
-    {"source": "اسم المصدر", "title": "عنوان المناقصة", "link": "الرابط"}
+bot.py
+======
+نسخة متوافقة مع scrapers.py (تُرجع dict لكل مناقصة: source / title / link)
+وتستخدم مكتبة python-telegram-bot (async) بدل requests المباشر.
  
-لا تنسَ:
-- نوبكو (NUPCO) موقع عادي (server-rendered) ويعمل مباشرة عبر requests.
-- اعتماد / تنافس / المركز الوطني للتخصيص مواقع JavaScript (Angular/React SPA)،
-  يعني لازم متصفح حقيقي (Playwright) لتحميل المحتوى قبل قراءته.
-  الـ selectors تحتها "أفضل تخمين" ويجب التأكد منها فعليًا عبر:
-  فتح الموقع في كروم -> كليك يمين على المناقصة -> Inspect -> شوف اسم
-  الـ class أو tag المستخدم فعليًا، وعدّل القيم المعلّمة بـ TODO تحت.
+الإعداد:
+    export BOT_TOKEN="123456:ABC-your-token"       # أو TELEGRAM_TOKEN
+    export CHAT_ID="-1001234567890"                # آيدي القناة أو المجموعة
+ 
+التشغيل:
+    python bot.py
 """
  
-import re
+import os
+import json
+import html
+import asyncio
 import logging
-import requests
-import xml.etree.ElementTree as ET
-from urllib.parse import quote
-from bs4 import BeautifulSoup
  
-log = logging.getLogger("tenders_bot.scrapers")
+from telegram import Bot
+from telegram.constants import ParseMode
  
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "ar,en;q=0.8",
-}
+from scraper import fetch_all_tenders, get_tender_id
  
-# كلمات تدل إن المناقصة متعلقة فعلاً بالقطاع الصحي (تُستخدم كفلتر إضافي
-# للمصادر العامة اللي ما تكون كل نتائجها صحية بالضرورة)
-HEALTH_KEYWORDS = [
-    "صحة", "صحي", "صحية", "طبي", "طبية", "مستشفى", "مستشفيات",
-    "مختبر", "مختبرات", "دواء", "أدوية", "مستلزمات طبية", "أجهزة طبية",
-    "تمريض", "عيادة", "عيادات", "صيدلية", "الرعاية الصحية", "تعقيم", "أشعة",
-]
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+log = logging.getLogger("tenders_bot")
  
+# يقرأ التوكن والآيدي بأي اسم متغير بيئة متاح
+BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
  
-def clean_text(text: str) -> str:
-    """تنظيف النص من المسافات والأسطر الزائدة"""
-    text = re.sub(r"\s+", " ", text or "")
-    return text.strip()
- 
- 
-def is_health_related(text: str) -> bool:
-    return any(k in text for k in HEALTH_KEYWORDS)
+SEEN_FILE = os.path.join(os.path.dirname(__file__), "seen_tenders.json")
+MAX_SEEN_HISTORY = 1000
  
  
 # ---------------------------------------------------------------------------
-# 1) نوبكو (NUPCO) — يعمل مباشرة، تم التحقق من بنية الصفحة الفعلية
+# منع تكرار الإرسال
 # ---------------------------------------------------------------------------
-def fetch_nupco_tenders():
-    """
-    الشركة الوطنية للشراء الموحد (نوبكو).
-    كل مناقصة تظهر داخل <h3><a href=".../tender/...">العنوان</a></h3>
-    وتتكرر مرتين بالصفحة (نسخة جوال + ديسكتوب) لذلك نعمل dedupe بالرابط.
-    نوبكو متخصصة بالكامل بالمستلزمات الطبية، فلا حاجة لفلترة إضافية.
-    """
-    url = "https://www.nupco.com/tenders/tenders-list/"
-    tenders = []
-    seen_links = set()
- 
+def load_seen_links() -> set:
+    if not os.path.exists(SEEN_FILE):
+        return set()
     try:
-        res = requests.get(url, headers=HEADERS, timeout=15)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
+        with open(SEEN_FILE, "r", encoding="utf-8") as f:
+            return set(json.load(f))
+    except (json.JSONDecodeError, OSError):
+        log.warning("تعذر قراءة ملف السجل، سيتم البدء بسجل فارغ.")
+        return set()
  
-        # كل روابط المناقصات تحتوي على "/tender/" في الـ href
-        links = soup.select('h3 a[href*="/tender/"]')
  
-        for a in links:
-            link = a.get("href", "").strip()
-            title = clean_text(a.get_text())
- 
-            if not link or not title or link in seen_links:
-                continue
- 
-            seen_links.add(link)
-            tenders.append({"source": "نوبكو (NUPCO)", "title": title, "link": link})
- 
-    except requests.RequestException as e:
-        log.error("فشل الاتصال بموقع نوبكو: %s", e)
-    except Exception as e:
-        log.exception("خطأ غير متوقع أثناء جلب نوبكو: %s", e)
- 
-    return tenders
+def save_seen_links(seen: set):
+    trimmed = list(seen)[-MAX_SEEN_HISTORY:]
+    with open(SEEN_FILE, "w", encoding="utf-8") as f:
+        json.dump(trimmed, f, ensure_ascii=False)
  
  
 # ---------------------------------------------------------------------------
-# 2) منصة اعتماد — موقع Angular، يحتاج متصفح حقيقي (Playwright)
+# تنسيق الرسالة
 # ---------------------------------------------------------------------------
-def fetch_etimad_tenders(max_results=5):
+def format_message(tender: dict) -> str:
     """
-    منصة اعتماد الحكومية (tenders.etimad.sa).
-    لا يوجد API عام موثّق من اعتماد نفسها، والصفحة تُبنى بالكامل بالجافاسكربت،
-    لذلك requests وحده لا يكفي إطلاقًا. نستخدم Playwright لتحميل الصفحة فعليًا
-    ثم نقرأ الـ DOM بعد التحميل.
- 
-    ملاحظة مهمة: الـ selector تحت (`.tender-item`, أو أي عنصر يحوي رابط
-    تفاصيل المنافسة) هو تخمين مبدئي. افتح الصفحة بالمتصفح وتأكد من الاسم
-    الحقيقي للعنصر عبر Inspect، وعدّله في المكان المعلّم TODO.
+    HTML بدل Markdown: تليجرام صارم جدًا مع رموز Markdown، وأي نجمة أو
+    شرطة سفلية داخل عنوان المناقصة (شائعة بالعربي) تكسر الرسالة كاملة.
+    HTML يحتاج فقط escape للنص العادي.
     """
-    from playwright.sync_api import sync_playwright
+    source = html.escape(tender["source"])
+    title = html.escape(tender["title"])
+    link = tender["link"]
  
-    url = "https://tenders.etimad.sa/Tender/AllSupplierTendersForVisitor"
-    tenders = []
- 
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page(user_agent=HEADERS["User-Agent"])
-            page.goto(url, timeout=30000, wait_until="networkidle")
- 
-            # TODO: تأكد من الـ selector الصحيح لبطاقة المنافسة عبر Inspect
-            cards = page.query_selector_all("a[href*='DetailsForVisitor']")
- 
-            for card in cards[:max_results]:
-                title = clean_text(card.inner_text())
-                href = card.get_attribute("href") or ""
-                if href.startswith("/"):
-                    href = "https://tenders.etimad.sa" + href
- 
-                if title and is_health_related(title):
-                    tenders.append({"source": "منصة اعتماد", "title": title, "link": href or url})
- 
-            browser.close()
- 
-    except ImportError:
-        log.warning("Playwright غير مثبت — راجع requirements.txt")
-    except Exception as e:
-        log.error("فشل جلب مناقصات اعتماد: %s", e)
- 
-    return tenders
+    return (
+        f"🏥 <b>{source}</b>\n"
+        f"📌 {title}\n"
+        f'🔗 <a href="{link}">فتح تفاصيل المنافسة</a>'
+    )
  
  
 # ---------------------------------------------------------------------------
-# 3) منصة تنافس — نفس ملاحظة الجافاسكربت + الموقع يمنع الوصول الآلي
-#    عبر robots.txt، فاستخدامه آليًا قد يخالف شروط استخدام الموقع.
+# الإرسال
 # ---------------------------------------------------------------------------
-def fetch_tanafus_tenders(max_results=5):
-    """
-    منصة تنافس. تنبيه: robots.txt الخاص بالموقع يمنع الزحف الآلي صراحة،
-    لذلك ننصح إما بعدم تضمينه في البوت، أو التواصل معهم للحصول على
-    وصول رسمي/API إن وُجد، بدل الزحف المباشر.
-    تُركت الدالة هنا كهيكل جاهز فقط في حال حصلت على إذن/API رسمي.
-    """
-    log.info("تم تخطي تنافس: robots.txt يمنع الوصول الآلي لهذا الموقع.")
-    return []
+async def send_updates():
+    if not BOT_TOKEN:
+        log.error("لم يتم العثور على التوكن! تأكد من ضبط BOT_TOKEN.")
+        return
+    if not CHAT_ID:
+        log.error("لم يتم العثور على CHAT_ID!")
+        return
  
+    bot = Bot(token=BOT_TOKEN)
  
-# ---------------------------------------------------------------------------
-# 4) المركز الوطني للتخصيص — موقع SharePoint/JS، نفس مبدأ Playwright
-# ---------------------------------------------------------------------------
-def fetch_ncp_tenders(max_results=5):
-    """
-    المركز الوطني للتخصيص وتنمية القطاع الخاص - فرص الشراكة الصحية.
-    نفس مبدأ اعتماد: يحتاج Playwright، والـ selector أدناه تخميني ويجب
-    التحقق منه عبر Inspect بالمتصفح.
-    """
-    from playwright.sync_api import sync_playwright
+    # fetch_all_tenders() ترجع list of dict، مو نصوص جاهزة —
+    # هذا هو الفرق الجوهري عن النسخة القديمة اللي كانت تفترض tender = نص
+    tenders = fetch_all_tenders()
  
-    url = "https://www.ncp.gov.sa/ar/Opportunities/Pages/default.aspx"
-    tenders = []
+    if not tenders:
+        log.info("لا توجد مناقصات من أي مصدر حاليًا.")
+        return
  
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page(user_agent=HEADERS["User-Agent"])
-            page.goto(url, timeout=30000, wait_until="networkidle")
+    seen = load_seen_links()
+    new_tenders = [t for t in tenders if get_tender_id(t) not in seen]
  
-            # TODO: تأكد من الـ selector الصحيح عبر Inspect
-            items = page.query_selector_all("a")
+    if not new_tenders:
+        log.info("لا توجد تحديثات جديدة.")
+        return
  
-            for item in items:
-                title = clean_text(item.inner_text())
-                href = item.get_attribute("href") or ""
-                if title and is_health_related(title) and len(title) > 10:
-                    if href.startswith("/"):
-                        href = "https://www.ncp.gov.sa" + href
-                    tenders.append({"source": "المركز الوطني للتخصيص", "title": title, "link": href or url})
-                if len(tenders) >= max_results:
-                    break
+    log.info("عدد المناقصات الجديدة: %d", len(new_tenders))
  
-            browser.close()
- 
-    except ImportError:
-        log.warning("Playwright غير مثبت — راجع requirements.txt")
-    except Exception as e:
-        log.error("فشل جلب فرص المركز الوطني للتخصيص: %s", e)
- 
-    return tenders
- 
- 
-# ---------------------------------------------------------------------------
-# 5) Google News RSS — خلاصة عامة رسمية، لا تحتاج API key ولا متصفح JS
-# ---------------------------------------------------------------------------
-GOOGLE_NEWS_QUERIES = [
-    "مناقصة طبية السعودية",
-    "مناقصات صحية السعودية",
-]
- 
- 
-def fetch_google_news_tenders(max_results=10):
-    """
-    يجلب أخبارًا عن مناقصات طبية عبر خلاصة RSS العامة لـ Google News.
-    هذا مصدر "أخبار عن مناقصات" (تغطية صحفية) وليس الإعلان الرسمي من الجهة
-    الحكومية نفسها — مفيد كمكمّل للمصادر الرسمية، لكن تحقق دائمًا من تاريخ
-    الخبر والرابط الأصلي قبل الاعتماد عليه للتقديم الفعلي.
-    """
-    tenders = []
-    seen_links = set()
- 
-    for query in GOOGLE_NEWS_QUERIES:
-        url = f"https://news.google.com/rss/search?q={quote(query)}&hl=ar&gl=SA&ceid=SA:ar"
- 
+    for tender in new_tenders:
+        text = format_message(tender)
         try:
-            res = requests.get(url, headers=HEADERS, timeout=15)
-            res.raise_for_status()
-            root = ET.fromstring(res.content)
+            await bot.send_message(
+                chat_id=CHAT_ID,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
+            seen.add(get_tender_id(tender))
+            log.info("تم الإرسال: %s", tender["title"][:60])
+        except Exception as e:
+            log.error("خطأ أثناء الإرسال: %s", e)
  
-            for item in root.findall(".//item")[:max_results]:
-                title_el = item.find("title")
-                link_el = item.find("link")
+        await asyncio.sleep(1)
  
-                title = clean_text(title_el.text) if title_el is not None else ""
-                link = clean_text(link_el.text) if link_el is not None else ""
- 
-                if not title or not link or link in seen_links:
-                    continue
- 
-                seen_links.add(link)
-                tenders.append({"source": "أخبار Google News", "title": title, "link": link})
- 
-        except requests.RequestException as e:
-            log.error("فشل الاتصال بخلاصة Google News: %s", e)
-        except ET.ParseError as e:
-            log.error("فشل تحليل خلاصة Google News (XML غير صالح): %s", e)
- 
-    return tenders
+    save_seen_links(seen)
  
  
-# ---------------------------------------------------------------------------
-# دالة التجميع الرئيسية
-# ---------------------------------------------------------------------------
-def fetch_all_tenders():
-    """يجمع نتائج كل المصادر في قائمة واحدة منظمة"""
-    all_tenders = []
-    all_tenders.extend(fetch_nupco_tenders())
-    all_tenders.extend(fetch_etimad_tenders())
-    all_tenders.extend(fetch_tanafus_tenders())
-    all_tenders.extend(fetch_ncp_tenders())
-    all_tenders.extend(fetch_google_news_tenders())
-    return all_tenders
+def main():
+    asyncio.run(send_updates())
  
  
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    results = fetch_all_tenders()
-    print(f"تم جلب {len(results)} مناقصة:\n")
-    for r in results:
-        print("---")
-        print(f"المصدر: {r['source']}")
-        print(f"العنوان: {r['title']}")
-        print(f"الرابط: {r['link']}")
+    main()
