@@ -2,7 +2,7 @@ name: Run Tender Bot
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # يعمل تلقائياً يومياً الساعة 6 صباحاً
+    - cron: '0 * * * *'  # يشتغل تلقائياً في بداية كل ساعmاً
   workflow_dispatch:      # يتيح التشغيل اليدوي
 
 jobs:
