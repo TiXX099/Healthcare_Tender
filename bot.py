@@ -162,15 +162,7 @@ def format_message(tender):
     # الأولوية
     # --------------------------------------------------------
 
-    if score >= 85:
-        priority = "🔥 عالية جدًا"
-
-    elif score >= 70:
-        priority = "🟢 عالية"
-
-    else:
-        priority = "🟡 متوسطة"
-
+   
     message = (
         "🏥 <b>فرصة صحية جديدة</b>\n\n"
         f"📌 <b>{title}</b>\n\n"
