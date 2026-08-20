@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 import urllib.parse
 import re
 from email.utils import parsedate_to_datetime
+from datetime import datetime, timezone, timedelta
+from difflib import SequenceMatcher
 
 
 HEADERS = {
@@ -14,13 +16,21 @@ HEADERS = {
 }
 
 # ============================================================
-# الكلمات الطبية والصحية
+# إعدادات النظام
+# ============================================================
+
+MAX_AGE_DAYS = 7
+MIN_SCORE = 60
+TITLE_SIMILARITY_THRESHOLD = 0.82
+
+
+# ============================================================
+# الكلمات الطبية
 # ============================================================
 
 MEDICAL_KEYWORDS = [
     "مختبر",
     "مختبرات",
-    "مختبري",
     "تحاليل",
     "أجهزة مخبرية",
     "معدات مخبرية",
@@ -40,7 +50,6 @@ MEDICAL_KEYWORDS = [
     "عيادات",
     "رعاية صحية",
     "قطاع صحي",
-    "الصحة",
     "وزارة الصحة",
     "نوبكو",
     "NUPCO",
@@ -55,7 +64,7 @@ MEDICAL_KEYWORDS = [
 
 
 # ============================================================
-# كلمات المناقصات والفرص
+# كلمات المناقصات
 # ============================================================
 
 TENDER_KEYWORDS = [
@@ -109,25 +118,27 @@ EXCLUDE_WORDS = [
 
 
 # ============================================================
-# Queries
+# البحث
 # ============================================================
 
 QUERIES = [
-    '"مناقصة" مستلزمات طبية السعودية',
-    '"منافسة" أجهزة مخبرية السعودية',
-    '"منافسة" أجهزة طبية السعودية',
-    '"توريد" مستلزمات طبية السعودية',
-    '"توريد" كواشف مختبرية السعودية',
-    '"تأمين" أجهزة طبية السعودية',
-    '"تأمين" مستلزمات طبية السعودية',
+    '"مناقصة" "مستلزمات طبية" السعودية',
+    '"مناقصة" "أجهزة طبية" السعودية',
+    '"مناقصة" "أجهزة مخبرية" السعودية',
+    '"منافسة" "مستلزمات طبية" السعودية',
+    '"منافسة" "أجهزة طبية" السعودية',
+    '"منافسة" "أجهزة مخبرية" السعودية',
+    '"توريد" "مستلزمات طبية" السعودية',
+    '"توريد" "أجهزة طبية" السعودية',
+    '"توريد" "كواشف" السعودية',
+    '"ترسية" "أجهزة طبية" السعودية',
+    '"ترسية" "مستلزمات طبية" السعودية',
     '"ترسية" مستشفى السعودية',
-    '"ترسية" أجهزة طبية السعودية',
-    '"ترسية" مختبر السعودية',
-    '"نوبكو" مناقصة',
-    '"نوبكو" منافسة',
-    '"نوبكو" توريد',
-    'مناقصات مستشفيات السعودية',
-    'مناقصات مختبرات السعودية',
+    '"نوبكو" مناقصة السعودية',
+    '"نوبكو" منافسة السعودية',
+    '"نوبكو" توريد السعودية',
+    '"طلب عروض" "أجهزة طبية" السعودية',
+    '"تأهيل الموردين" طبي السعودية',
 ]
 
 
@@ -146,28 +157,118 @@ def clean_text(text):
 
 
 # ============================================================
-# استخراج التاريخ
+# تنظيف العنوان للمقارنة
 # ============================================================
 
-def format_date(date_text):
-    if not date_text:
+def normalize_title(title):
+    if not title:
         return ""
 
-    try:
-        dt = parsedate_to_datetime(date_text)
-        return dt.strftime("%Y-%m-%d %H:%M")
-    except Exception:
-        return date_text.strip()
+    text = title.lower()
+
+    # إزالة الروابط
+    text = re.sub(r"https?://\S+", "", text)
+
+    # إزالة علامات الترقيم
+    text = re.sub(r"[^\w\s\u0600-\u06FF]", " ", text)
+
+    # إزالة كلمات عامة لا تفيد في مقارنة الأخبار
+    stop_words = [
+        "شركة",
+        "تعلن",
+        "إعلان",
+        "السعودية",
+        "السعودي",
+        "اليوم",
+        "الجديد",
+        "جديدة",
+        "توقيع",
+        "توقع",
+        "عقد",
+    ]
+
+    words = text.split()
+
+    words = [
+        word
+        for word in words
+        if word not in stop_words
+    ]
+
+    return " ".join(words)
 
 
 # ============================================================
-# حساب التطابق
+# مقارنة عنوانين
+# ============================================================
+
+def titles_are_similar(title1, title2):
+    normalized1 = normalize_title(title1)
+    normalized2 = normalize_title(title2)
+
+    if not normalized1 or not normalized2:
+        return False
+
+    # تطابق مباشر
+    if normalized1 == normalized2:
+        return True
+
+    # نسبة التشابه
+    similarity = SequenceMatcher(
+        None,
+        normalized1,
+        normalized2
+    ).ratio()
+
+    return similarity >= TITLE_SIMILARITY_THRESHOLD
+
+
+# ============================================================
+# التاريخ
+# ============================================================
+
+def parse_date(date_text):
+    if not date_text:
+        return None
+
+    try:
+        return parsedate_to_datetime(date_text).astimezone(
+            timezone.utc
+        )
+    except Exception:
+        return None
+
+
+def format_date(date_text):
+    dt = parse_date(date_text)
+
+    if not dt:
+        return ""
+
+    return dt.strftime("%Y-%m-%d %H:%M")
+
+
+def is_recent(date_text):
+    published = parse_date(date_text)
+
+    if not published:
+        # إذا Google لم يعطنا تاريخًا واضحًا
+        # لا نحذف الخبر تلقائياً
+        return True
+
+    now = datetime.now(timezone.utc)
+
+    age = now - published
+
+    return age <= timedelta(days=MAX_AGE_DAYS)
+
+
+# ============================================================
+# الكلمات الموجودة
 # ============================================================
 
 def find_matches(text, keywords):
-    """
-    ترجع الكلمات الموجودة فعلياً داخل النص.
-    """
+
     text = text.lower()
 
     return [
@@ -178,99 +279,135 @@ def find_matches(text, keywords):
 
 
 # ============================================================
-# حساب Relevance Score
+# حساب Score
 # ============================================================
 
 def calculate_score(title, description):
+
     title = title or ""
     description = description or ""
 
     title_lower = title.lower()
-    description_lower = description.lower()
-
     combined_text = f"{title} {description}".lower()
 
-    score = 0
-
-    matched_medical = find_matches(
+    medical_matches = find_matches(
         combined_text,
         MEDICAL_KEYWORDS
     )
 
-    matched_tender = find_matches(
+    tender_matches = find_matches(
         combined_text,
         TENDER_KEYWORDS
     )
 
-    matched_excluded = find_matches(
+    excluded_matches = find_matches(
         combined_text,
         EXCLUDE_WORDS
     )
 
     # --------------------------------------------------------
-    # نقاط المجال الطبي
+    # نقاط المجال الصحي
     # --------------------------------------------------------
 
-    for keyword in matched_medical:
-        if keyword.lower() in title_lower:
-            score += 25
-        else:
-            score += 10
+    medical_score = 0
 
-    # --------------------------------------------------------
-    # نقاط المناقصات
-    # --------------------------------------------------------
+    if medical_matches:
+        medical_score += 25
 
-    for keyword in matched_tender:
-        if keyword.lower() in title_lower:
-            score += 30
-        else:
-            score += 10
-
-    # --------------------------------------------------------
-    # نقاط إضافية لبعض الكلمات المهمة
-    # --------------------------------------------------------
-
-    high_value_keywords = [
-        "نوبكو",
-        "مناقصة",
-        "منافسة",
-        "ترسية",
+    # وجود كلمة قوية في العنوان
+    strong_medical = [
+        "مختبر",
         "كواشف",
         "أجهزة طبية",
         "أجهزة مخبرية",
+        "مستلزمات طبية",
+        "نوبكو",
+        "مستشفى",
     ]
 
-    for keyword in high_value_keywords:
-        if keyword.lower() in title_lower:
-            score += 15
+    if any(
+        keyword.lower() in title_lower
+        for keyword in strong_medical
+    ):
+        medical_score += 15
 
     # --------------------------------------------------------
-    # الخصم للكلمات المستبعدة
+    # نقاط المناقصة
     # --------------------------------------------------------
 
-    score -= len(matched_excluded) * 30
+    tender_score = 0
 
-    # الحد الأعلى 100
-    score = min(score, 100)
+    if tender_matches:
+        tender_score += 25
 
-    # الحد الأدنى 0
-    score = max(score, 0)
+    strong_tender = [
+        "مناقصة",
+        "منافسة",
+        "ترسية",
+        "طلب عروض",
+    ]
+
+    if any(
+        keyword.lower() in title_lower
+        for keyword in strong_tender
+    ):
+        tender_score += 20
+
+    # --------------------------------------------------------
+    # نقاط إضافية
+    # --------------------------------------------------------
+
+    extra_score = 0
+
+    if "نوبكو" in combined_text or "nupco" in combined_text:
+        extra_score += 10
+
+    if "توريد" in combined_text:
+        extra_score += 5
+
+    if "عقد" in combined_text:
+        extra_score += 5
+
+    # --------------------------------------------------------
+    # مجموع النقاط
+    # --------------------------------------------------------
+
+    score = (
+        medical_score
+        + tender_score
+        + extra_score
+    )
+
+    # خصم للكلمات غير المرغوبة
+    score -= len(excluded_matches) * 25
+
+    # الحد 0 - 100
+    score = max(0, min(score, 100))
 
     return {
         "score": score,
-        "medical_matches": matched_medical,
-        "tender_matches": matched_tender,
-        "excluded_matches": matched_excluded,
+        "medical_matches": medical_matches,
+        "tender_matches": tender_matches,
+        "excluded_matches": excluded_matches,
     }
 
 
 # ============================================================
-# تصنيف الفرصة
+# التصنيف
 # ============================================================
 
 def classify_tender(text):
+
     text = text.lower()
+
+    if any(
+        keyword in text
+        for keyword in [
+            "نوبكو",
+            "nupco",
+        ]
+    ):
+        return "🏢 مشتريات نوبكو"
 
     if any(
         keyword in text
@@ -291,6 +428,7 @@ def classify_tender(text):
             "معدات طبية",
             "تجهيزات طبية",
             "مستهلكات طبية",
+            "مستلزمات طبية",
         ]
     ):
         return "🔬 أجهزة ومستلزمات طبية"
@@ -317,23 +455,15 @@ def classify_tender(text):
     ):
         return "🏥 مستشفيات ورعاية صحية"
 
-    if any(
-        keyword in text
-        for keyword in [
-            "نوبكو",
-            "NUPCO",
-        ]
-    ):
-        return "🏢 نوبكو / مشتريات صحية"
-
     return "🏥 قطاع صحي"
 
 
 # ============================================================
-# جلب Google News RSS
+# Google News RSS
 # ============================================================
 
 def fetch_google_rss(query):
+
     encoded_query = urllib.parse.quote(query)
 
     rss_url = (
@@ -347,6 +477,7 @@ def fetch_google_rss(query):
     results = []
 
     try:
+
         response = requests.get(
             rss_url,
             headers=HEADERS,
@@ -355,7 +486,9 @@ def fetch_google_rss(query):
 
         response.raise_for_status()
 
-        root = ET.fromstring(response.content)
+        root = ET.fromstring(
+            response.content
+        )
 
         for item in root.findall(".//item")[:20]:
 
@@ -373,7 +506,8 @@ def fetch_google_rss(query):
 
             link = (
                 link_element.text.strip()
-                if link_element is not None and link_element.text
+                if link_element is not None
+                and link_element.text
                 else ""
             )
 
@@ -385,78 +519,119 @@ def fetch_google_rss(query):
 
             published_at = (
                 pub_date_element.text.strip()
-                if pub_date_element is not None and pub_date_element.text
+                if pub_date_element is not None
+                and pub_date_element.text
                 else ""
             )
 
             source = (
                 source_element.text.strip()
-                if source_element is not None and source_element.text
+                if source_element is not None
+                and source_element.text
                 else "Google News"
             )
 
-            if title and link:
-                results.append(
-                    {
-                        "title": title,
-                        "link": link,
-                        "description": description,
-                        "published_at": format_date(published_at),
-                        "source": source,
-                    }
+            if not title or not link:
+                continue
+
+            # ------------------------------------------------
+            # فلتر التاريخ
+            # ------------------------------------------------
+
+            if not is_recent(published_at):
+                print(
+                    f"⏳ Old news ignored: {title}"
                 )
+                continue
+
+            results.append(
+                {
+                    "title": title,
+                    "link": link,
+                    "description": description,
+                    "published_at": format_date(
+                        published_at
+                    ),
+                    "source": source,
+                }
+            )
 
     except requests.RequestException as error:
-        print(f"❌ RSS request error: {error}")
+
+        print(
+            f"❌ RSS request error: {error}"
+        )
 
     except ET.ParseError as error:
-        print(f"❌ RSS XML parsing error: {error}")
+
+        print(
+            f"❌ RSS XML parsing error: {error}"
+        )
 
     except Exception as error:
-        print(f"❌ Unexpected RSS error: {error}")
+
+        print(
+            f"❌ Unexpected RSS error: {error}"
+        )
 
     return results
 
 
 # ============================================================
-# جلب وفرز المناقصات
+# جلب المناقصات
 # ============================================================
 
 def fetch_tenders():
 
     all_results = []
 
-    # منع تكرار الرابط بين الـ Queries
     seen_links = set()
+    seen_titles = []
 
     for query in QUERIES:
 
-        print(f"🔎 Searching: {query}")
+        print(
+            f"\n🔎 Searching: {query}"
+        )
 
         items = fetch_google_rss(query)
 
         for item in items:
 
             title = item["title"]
+            link = item["link"]
             description = item["description"]
 
             # ------------------------------------------------
-            # منع تكرار نفس الرابط
+            # منع تكرار الرابط
             # ------------------------------------------------
 
-            if item["link"] in seen_links:
+            if link in seen_links:
                 continue
 
-            seen_links.add(item["link"])
-
             # ------------------------------------------------
-            # النص الكامل للتحليل
+            # منع تكرار العنوان / الخبر
             # ------------------------------------------------
 
-            combined_text = f"{title} {description}"
+            duplicate_title = False
+
+            for existing_title in seen_titles:
+
+                if titles_are_similar(
+                    title,
+                    existing_title
+                ):
+                    duplicate_title = True
+                    break
+
+            if duplicate_title:
+                print(
+                    f"🔁 Duplicate ignored: {title}"
+                )
+                continue
 
             # ------------------------------------------------
-            # حساب Score
+            # تحليل المحتوى
             # ------------------------------------------------
 
             analysis = calculate_score(
@@ -465,10 +640,6 @@ def fetch_tenders():
             )
 
             score = analysis["score"]
-
-            # ------------------------------------------------
-            # يجب وجود مجال صحي + مجال مناقصات
-            # ------------------------------------------------
 
             has_medical = bool(
                 analysis["medical_matches"]
@@ -495,27 +666,28 @@ def fetch_tenders():
             if has_excluded:
                 continue
 
-            if score < 60:
+            if score < MIN_SCORE:
                 continue
 
             # ------------------------------------------------
-            # التصنيف
+            # تسجيل الخبر المقبول
             # ------------------------------------------------
+
+            seen_links.add(link)
+            seen_titles.append(title)
 
             category = classify_tender(
-                combined_text
+                f"{title} {description}"
             )
-
-            # ------------------------------------------------
-            # حفظ النتيجة
-            # ------------------------------------------------
 
             all_results.append(
                 {
                     "title": title,
-                    "link": item["link"],
+                    "link": link,
                     "description": description,
-                    "published_at": item["published_at"],
+                    "published_at": item[
+                        "published_at"
+                    ],
                     "source": item["source"],
                     "category": category,
                     "score": score,
@@ -529,7 +701,7 @@ def fetch_tenders():
             )
 
     # --------------------------------------------------------
-    # ترتيب النتائج من الأعلى Score إلى الأقل
+    # ترتيب الأعلى Score أولاً
     # --------------------------------------------------------
 
     all_results.sort(
@@ -538,34 +710,55 @@ def fetch_tenders():
     )
 
     print(
-        f"✅ Found {len(all_results)} relevant opportunities."
+        f"\n✅ Final relevant opportunities: "
+        f"{len(all_results)}"
     )
 
     return all_results
 
 
 # ============================================================
-# اختبار مباشر للملف
+# اختبار مباشر
 # ============================================================
 
 if __name__ == "__main__":
 
     results = fetch_tenders()
 
-    for index, tender in enumerate(results, start=1):
+    print("\n" + "=" * 60)
+    print("FINAL RESULTS")
+    print("=" * 60)
 
-        print("\n" + "=" * 60)
+    for index, tender in enumerate(
+        results,
+        start=1
+    ):
 
-        print(f"#{index}")
-        print(f"Title: {tender['title']}")
-        print(f"Category: {tender['category']}")
-        print(f"Score: {tender['score']}/100")
-        print(f"Source: {tender['source']}")
-        print(f"Published: {tender['published_at']}")
-        print(f"Link: {tender['link']}")
         print(
-            f"Medical: {', '.join(tender['medical_matches'])}"
+            f"\n#{index}"
         )
+
         print(
-            f"Tender: {', '.join(tender['tender_matches'])}"
+            f"📌 {tender['title']}"
+        )
+
+        print(
+            f"📂 {tender['category']}"
+        )
+
+        print(
+            f"🎯 Score: "
+            f"{tender['score']}/100"
+        )
+
+        print(
+            f"📰 {tender['source']}"
+        )
+
+        print(
+            f"🕐 {tender['published_at']}"
+        )
+
+        print(
+            f"🔗 {tender['link']}"
         )
