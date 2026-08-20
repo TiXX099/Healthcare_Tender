@@ -1,73 +1,175 @@
 import os
 import asyncio
-from html import escape
+import re
+import hashlib
+
 from telegram import Bot
-from scraper import fetch_tenders
+from scraper import fetch_tenders, normalize_title
 
 
-BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_TOKEN")
+BOT_TOKEN = (
+    os.getenv("BOT_TOKEN")
+    or os.getenv("TELEGRAM_TOKEN")
+)
+
 CHANNEL_ID = os.getenv("CHAT_ID")
 
 HISTORY_FILE = "sent_history.txt"
 
 
+# ============================================================
+# إنشاء بصمة العنوان
+# ============================================================
+
+def title_hash(title):
+
+    normalized = normalize_title(title)
+
+    return hashlib.sha256(
+        normalized.encode("utf-8")
+    ).hexdigest()
+
+
+# ============================================================
+# تحميل سجل الإرسال
+# ============================================================
+
 def load_sent_history():
-    """
-    تحميل روابط الأخبار التي سبق إرسالها.
-    """
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r", encoding="utf-8") as file:
-            return set(
-                line.strip()
-                for line in file
-                if line.strip()
+
+    sent_links = set()
+    sent_title_hashes = set()
+
+    if not os.path.exists(HISTORY_FILE):
+        return sent_links, sent_title_hashes
+
+    with open(
+        HISTORY_FILE,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        for line in file:
+
+            line = line.strip()
+
+            if not line:
+                continue
+
+            # ------------------------------------------------
+            # السجل الجديد:
+            #
+            # URL|TITLE_HASH
+            # ------------------------------------------------
+
+            if "|" in line:
+
+                parts = line.split("|", 1)
+
+                link = parts[0].strip()
+                hash_value = parts[1].strip()
+
+                if link:
+                    sent_links.add(link)
+
+                if hash_value:
+                    sent_title_hashes.add(
+                        hash_value
+                    )
+
+                continue
+
+            # ------------------------------------------------
+            # دعم السجل القديم
+            #
+            # نبحث عن أي URL موجود داخل السطر
+            # ------------------------------------------------
+
+            urls = re.findall(
+                r"https?://\S+",
+                line
             )
 
-    return set()
+            for url in urls:
+
+                url = url.rstrip(
+                    ")]}>.,"
+                )
+
+                sent_links.add(url)
+
+    return sent_links, sent_title_hashes
 
 
-def save_to_history(link):
-    """
-    حفظ رابط الخبر لمنع تكراره مستقبلاً.
-    """
-    with open(HISTORY_FILE, "a", encoding="utf-8") as file:
-        file.write(link.strip() + "\n")
+# ============================================================
+# حفظ الخبر في السجل
+# ============================================================
 
+def save_to_history(
+    link,
+    title
+):
+
+    hash_value = title_hash(title)
+
+    with open(
+        HISTORY_FILE,
+        "a",
+        encoding="utf-8"
+    ) as file:
+
+        file.write(
+            f"{link}|{hash_value}\n"
+        )
+
+
+# ============================================================
+# إنشاء رسالة Telegram
+# ============================================================
 
 def format_message(tender):
-    """
-    تحويل بيانات المناقصة إلى رسالة Telegram احترافية.
-    """
 
-    title = escape(tender.get("title", "بدون عنوان"))
-    link = tender.get("link", "")
-    category = escape(
-        tender.get("category", "🏥 قطاع صحي")
+    title = tender.get(
+        "title",
+        "بدون عنوان"
     )
 
-    score = tender.get("score", 0)
-    source = escape(
-        tender.get("source", "Google News")
+    link = tender.get(
+        "link",
+        ""
     )
 
-    published_at = escape(
-        tender.get("published_at", "")
+    category = tender.get(
+        "category",
+        "🏥 قطاع صحي"
+    )
+
+    score = tender.get(
+        "score",
+        0
+    )
+
+    source = tender.get(
+        "source",
+        "Google News"
+    )
+
+    published_at = tender.get(
+        "published_at",
+        ""
     )
 
     # --------------------------------------------------------
-    # تحديد مستوى الأهمية
+    # الأولوية
     # --------------------------------------------------------
 
-    if score >= 80:
-        priority = "🔥 عالية الأهمية"
-    elif score >= 60:
-        priority = "🟢 ذات صلة"
+    if score >= 85:
+        priority = "🔥 عالية جدًا"
+
+    elif score >= 70:
+        priority = "🟢 عالية"
+
     else:
-        priority = "🟡 محتملة"
-
-    # --------------------------------------------------------
-    # إنشاء الرسالة
-    # --------------------------------------------------------
+        priority = "🟡 متوسطة"
 
     message = (
         "🏥 <b>فرصة صحية جديدة</b>\n\n"
@@ -78,11 +180,15 @@ def format_message(tender):
     )
 
     if published_at:
-        message += f"🕐 <b>تاريخ النشر:</b> {published_at}\n"
+
+        message += (
+            f"🕐 <b>تاريخ النشر:</b> "
+            f"{published_at}\n"
+        )
 
     message += (
         f"📰 <b>المصدر:</b> {source}\n\n"
-        f'🔗 <a href="{escape(link, quote=True)}">'
+        f'🔗 <a href="{link}">'
         "التفاصيل والمصدر"
         "</a>"
     )
@@ -90,83 +196,121 @@ def format_message(tender):
     return message
 
 
+# ============================================================
+# إرسال القناة
+# ============================================================
+
 async def send_to_channel():
 
-    # --------------------------------------------------------
-    # التحقق من Secrets
-    # --------------------------------------------------------
-
     if not BOT_TOKEN or not CHANNEL_ID:
+
         print(
-            "❌ خطأ: لم يتم ضبط BOT_TOKEN/TELEGRAM_TOKEN "
-            "أو CHAT_ID في GitHub Secrets!"
+            "❌ لم يتم ضبط "
+            "BOT_TOKEN/TELEGRAM_TOKEN أو CHAT_ID."
         )
+
         return
 
-    print("🚀 Starting Tender Bot...")
+    print(
+        "🚀 Starting Healthcare Tender Bot..."
+    )
 
-    # --------------------------------------------------------
-    # إنشاء Bot
-    # --------------------------------------------------------
+    sent_links, sent_title_hashes = (
+        load_sent_history()
+    )
 
-    bot = Bot(token=BOT_TOKEN)
+    print(
+        f"📚 History loaded: "
+        f"{len(sent_links)} links / "
+        f"{len(sent_title_hashes)} title hashes"
+    )
 
-    # --------------------------------------------------------
-    # جلب المناقصات
-    # --------------------------------------------------------
-
-    print("🔎 Fetching tenders...")
+    print(
+        "🔎 Fetching new opportunities..."
+    )
 
     tenders = fetch_tenders()
 
     if not tenders:
+
         print(
-            "⚠️ لم يتم العثور على فرص جديدة مطابقة للشروط."
+            "⚠️ No relevant opportunities found."
         )
+
         return
 
     print(
-        f"📊 Found {len(tenders)} relevant opportunities."
+        f"📊 Candidates found: "
+        f"{len(tenders)}"
     )
 
-    # --------------------------------------------------------
-    # تحميل سجل الروابط السابقة
-    # --------------------------------------------------------
-
-    sent_history = load_sent_history()
+    bot = Bot(
+        token=BOT_TOKEN
+    )
 
     new_count = 0
     duplicate_count = 0
     error_count = 0
 
-    # --------------------------------------------------------
-    # إرسال النتائج
-    # --------------------------------------------------------
-
     for tender in tenders:
 
-        link = tender.get("link", "").strip()
+        link = tender.get(
+            "link",
+            ""
+        ).strip()
 
-        if not link:
-            print("⚠️ Skipping tender without link.")
-            continue
+        title = tender.get(
+            "title",
+            ""
+        ).strip()
 
-        # ----------------------------------------------------
-        # منع التكرار باستخدام الرابط
-        # ----------------------------------------------------
+        if not link or not title:
 
-        if link in sent_history:
-            duplicate_count += 1
             print(
-                f"⏭️ Already sent: {tender.get('title', '')}"
+                "⚠️ Skipping incomplete result."
             )
+
+            continue
+
+        current_hash = title_hash(
+            title
+        )
+
+        # ----------------------------------------------------
+        # التحقق من الرابط
+        # ----------------------------------------------------
+
+        if link in sent_links:
+
+            duplicate_count += 1
+
+            print(
+                f"⏭️ Duplicate URL: {title}"
+            )
+
             continue
 
         # ----------------------------------------------------
-        # تجهيز الرسالة
+        # التحقق من بصمة العنوان
         # ----------------------------------------------------
 
-        message = format_message(tender)
+        if current_hash in sent_title_hashes:
+
+            duplicate_count += 1
+
+            print(
+                f"⏭️ Duplicate title: {title}"
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # الرسالة
+        # ----------------------------------------------------
+
+        message = format_message(
+            tender
+        )
 
         try:
 
@@ -178,19 +322,25 @@ async def send_to_channel():
             )
 
             # ------------------------------------------------
-            # حفظ الرابط بعد نجاح الإرسال فقط
+            # نحفظ فقط بعد نجاح Telegram
             # ------------------------------------------------
 
-            save_to_history(link)
-            sent_history.add(link)
+            save_to_history(
+                link,
+                title
+            )
+
+            sent_links.add(link)
+            sent_title_hashes.add(
+                current_hash
+            )
 
             new_count += 1
 
             print(
-                f"✅ Sent: {tender.get('title', '')}"
+                f"✅ Sent: {title}"
             )
 
-            # عدم إرسال الرسائل بسرعة
             await asyncio.sleep(2)
 
         except Exception as error:
@@ -201,23 +351,41 @@ async def send_to_channel():
                 f"❌ Telegram error: {error}"
             )
 
-    # --------------------------------------------------------
+    # ========================================================
     # ملخص التشغيل
-    # --------------------------------------------------------
+    # ========================================================
 
-    print("\n" + "=" * 50)
+    print("\n" + "=" * 55)
     print("📊 BOT RUN SUMMARY")
-    print("=" * 50)
-    print(f"🔎 Total found: {len(tenders)}")
-    print(f"✅ New sent: {new_count}")
-    print(f"⏭️ Duplicates: {duplicate_count}")
-    print(f"❌ Errors: {error_count}")
-    print("=" * 50)
+    print("=" * 55)
+
+    print(
+        f"🔎 Candidates: {len(tenders)}"
+    )
+
+    print(
+        f"✅ New sent: {new_count}"
+    )
+
+    print(
+        f"⏭️ Duplicates skipped: "
+        f"{duplicate_count}"
+    )
+
+    print(
+        f"❌ Errors: {error_count}"
+    )
+
+    print("=" * 55)
 
 
 def main():
-    asyncio.run(send_to_channel())
+
+    asyncio.run(
+        send_to_channel()
+    )
 
 
 if __name__ == "__main__":
+
     main()
