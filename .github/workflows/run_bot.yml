@@ -2,15 +2,19 @@ name: Run Tender Bot
 
 on:
   schedule:
+    # تشغيل تلقائي كل ساعة
     - cron: '0 * * * *'
 
+  # تشغيل يدوي من GitHub Actions
   workflow_dispatch:
 
 
+# السماح للـ GitHub Actions بحفظ sent_history.txt
 permissions:
   contents: write
 
 
+# منع تشغيل نسختين من البوت في نفس الوقت
 concurrency:
   group: healthcare-tender-bot
   cancel-in-progress: false
@@ -24,11 +28,19 @@ jobs:
 
     steps:
 
+      # =====================================================
+      # تحميل ملفات المشروع
+      # =====================================================
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+
+      # =====================================================
+      # إعداد Python
+      # =====================================================
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,11 +48,19 @@ jobs:
           python-version: '3.10'
 
 
+      # =====================================================
+      # تثبيت المكتبات
+      # =====================================================
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+
+      # =====================================================
+      # تشغيل البوت
+      # =====================================================
 
       - name: Run Bot
         env:
@@ -50,18 +70,30 @@ jobs:
           python bot.py
 
 
+      # =====================================================
+      # حفظ سجل الأخبار المرسلة
+      # =====================================================
+
       - name: Save History File
         run: |
 
+          # إنشاء الملف إذا لم يكن موجوداً
+          touch sent_history.txt
+
+          # إعداد هوية GitHub Actions
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # إضافة سجل الأخبار
           git add sent_history.txt
 
+          # إذا لم يتغير الملف، لا ننشئ Commit
           if git diff --cached --quiet; then
             echo "ℹ️ No history changes."
+
           else
             git commit -m "Update tender history"
             git push
+
             echo "✅ History successfully saved."
           fi
