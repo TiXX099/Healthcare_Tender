@@ -1,227 +1,760 @@
-import os
-import asyncio
+import requests
+import xml.etree.ElementTree as ET
+import urllib.parse
 import re
-import hashlib
 
-from telegram import Bot
-from scraper import fetch_tenders, normalize_title
-
-
-BOT_TOKEN = (
-    os.getenv("BOT_TOKEN")
-    or os.getenv("TELEGRAM_TOKEN")
-)
-
-CHANNEL_ID = os.getenv("CHAT_ID")
-
-HISTORY_FILE = "sent_history.txt"
+from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
+from difflib import SequenceMatcher
 
 
-# ============================================================
-# إنشاء بصمة العنوان
-# ============================================================
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+}
 
-def title_hash(title):
-    normalized = normalize_title(title)
-    return hashlib.sha256(
-        normalized.encode("utf-8")
-    ).hexdigest()
+MAX_AGE_DAYS = 7
+MIN_SCORE = 65
+TITLE_SIMILARITY_THRESHOLD = 0.88
 
 
 # ============================================================
-# تحميل سجل الإرسال
+# المجال الطبي والمخبري
 # ============================================================
 
-def load_sent_history():
-    sent_links = set()
-    sent_title_hashes = set()
+MEDICAL_KEYWORDS = [
+    "مختبر",
+    "مختبرات",
+    "مختبري",
+    "مختبرية",
+    "تحاليل",
+    "تحليل مخبري",
+    "أجهزة مخبرية",
+    "معدات مخبرية",
+    "مستلزمات مخبرية",
+    "كواشف",
+    "كاشف",
+    "مواد مخبرية",
+    "reagents",
+    "laboratory",
+    "diagnostic",
 
-    if not os.path.exists(HISTORY_FILE):
-        return sent_links, sent_title_hashes
+    "أجهزة طبية",
+    "جهاز طبي",
+    "معدات طبية",
+    "مستلزمات طبية",
+    "مستلزمات صحية",
+    "مستهلكات طبية",
+    "مستهلكات صحية",
+    "تجهيزات طبية",
+    "معدات صحية",
+    "مواد طبية",
 
-    with open(
-        HISTORY_FILE,
-        "r",
-        encoding="utf-8"
-    ) as file:
-        for line in file:
-            line = line.strip()
+    "أدوية",
+    "دواء",
+    "مستحضرات دوائية",
+    "صيدلية",
+    "صيدليات",
+    "pharmaceutical",
 
-            if not line:
-                continue
-
-            # السجل الجديد: URL|TITLE_HASH
-            if "|" in line:
-                parts = line.split("|", 1)
-                link = parts[0].strip()
-                hash_value = parts[1].strip()
-
-                if link:
-                    sent_links.add(link)
-                if hash_value:
-                    sent_title_hashes.add(hash_value)
-                continue
-
-            # دعم السجل القديم: البحث عن أي URL
-            urls = re.findall(r"https?://\S+", line)
-            for url in urls:
-                url = url.rstrip(")]}>.,")
-                sent_links.add(url)
-
-    return sent_links, sent_title_hashes
-
-
-# ============================================================
-# حفظ الخبر في السجل
-# ============================================================
-
-def save_to_history(link, title):
-    hash_value = title_hash(title)
-
-    with open(
-        HISTORY_FILE,
-        "a",
-        encoding="utf-8"
-    ) as file:
-        file.write(f"{link}|{hash_value}\n")
+    "نوبكو",
+    "nupco",
+]
 
 
 # ============================================================
-# إنشاء رسالة Telegram
+# كلمات المناقصات والتوريد
 # ============================================================
 
-def format_message(tender):
-    title = tender.get("title", "بدون عنوان")
-    link = tender.get("link", "")
-    category = tender.get("category", "🏥 قطاع صحي")
-    score = tender.get("score", 0)
-    source = tender.get("source", "Google News")
-    published_at = tender.get("published_at", "")
+TENDER_KEYWORDS = [
+    "مناقصة",
+    "مناقصات",
+    "منافسة",
+    "منافسات",
+    "ترسية",
+    "ترسيه",
+    "توريد",
+    "تأمين",
+    "شراء",
+    "طلب عروض",
+    "طلب تقديم عروض",
+    "دعوة لتقديم العروض",
+    "دعوة للمنافسة",
+    "تأهيل الموردين",
+    "تأهيل موردين",
+    "طرح منافسة",
+    "طرح مناقصة",
+]
 
-    # تحديد الأولوية قبل استخدامها في الرسالة
-    if score >= 85:
-        priority = "🔥 عالية جدًا"
-    elif score >= 70:
-        priority = "🟢 عالية"
-    else:
-        priority = "🟡 متوسطة"
 
-    message = (
-        "🏥 <b>فرصة صحية جديدة</b>\n\n"
-        f"📌 <b>{title}</b>\n\n"
-        f"📂 <b>التصنيف:</b> {category}\n"
-        f"🎯 <b>درجة الصلة:</b> {score}/100\n"
-        f"⚡ <b>الأولوية:</b> {priority}\n"
+WEAK_TENDER_KEYWORDS = [
+    "عقد",
+    "عقود",
+    "تجهيز",
+    "تجهيزات",
+]
+
+
+# ============================================================
+# كلمات يجب استبعادها
+# ============================================================
+
+EXCLUDE_WORDS = [
+    "غزة",
+    "فلسطين",
+    "الرياضية",
+    "تلاعب",
+    "أرباح",
+    "سهم",
+    "أسهم",
+    "البورصة",
+    "انتخابات",
+    "سياسي",
+    "سياسة",
+    "حرب",
+    "كرة القدم",
+    "دوري",
+
+    "تغذية",
+    "وجبات",
+    "إعاشة",
+    "نظافة",
+    "حراسة",
+    "أمن",
+    "صيانة عامة",
+    "صيانة المباني",
+    "مقاولات",
+    "مقاول",
+    "إنشاءات",
+    "إنشاء",
+    "تشييد",
+    "مباني",
+    "أثاث",
+    "سيارات",
+    "مركبات",
+    "وقود",
+    "محروقات",
+]
+
+
+# ============================================================
+# البحث
+# ============================================================
+
+QUERIES = [
+    '"مناقصة" "مستلزمات طبية" السعودية',
+    '"مناقصة" "أجهزة طبية" السعودية',
+    '"مناقصة" "أجهزة مخبرية" السعودية',
+    '"مناقصة" "كواشف" السعودية',
+
+    '"منافسة" "مستلزمات طبية" السعودية',
+    '"منافسة" "أجهزة طبية" السعودية',
+    '"منافسة" "أجهزة مخبرية" السعودية',
+    '"منافسة" "كواشف" السعودية',
+
+    '"توريد" "مستلزمات طبية" السعودية',
+    '"توريد" "أجهزة طبية" السعودية',
+    '"توريد" "أجهزة مخبرية" السعودية',
+    '"توريد" "كواشف" السعودية',
+
+    '"ترسية" "أجهزة طبية" السعودية',
+    '"ترسية" "مستلزمات طبية" السعودية',
+    '"ترسية" "أجهزة مخبرية" السعودية',
+    '"ترسية" "كواشف" السعودية',
+
+    '"نوبكو" مناقصة السعودية',
+    '"نوبكو" منافسة السعودية',
+    '"نوبكو" توريد السعودية',
+    '"NUPCO" tender Saudi',
+
+    '"طلب عروض" "أجهزة طبية" السعودية',
+    '"طلب عروض" "مستلزمات طبية" السعودية',
+
+    '"تأهيل الموردين" طبي السعودية',
+    '"تأهيل موردين" طبي السعودية',
+]
+
+
+# ============================================================
+# تنظيف النص
+# ============================================================
+
+def clean_text(text):
+    if not text:
+        return ""
+
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
+
+
+# ============================================================
+# توحيد العنوان لمنع التكرار
+# ============================================================
+
+def normalize_title(title):
+    if not title:
+        return ""
+
+    text = title.lower()
+
+    text = re.sub(r"https?://\S+", "", text)
+
+    text = text.replace("أ", "ا")
+    text = text.replace("إ", "ا")
+    text = text.replace("آ", "ا")
+    text = text.replace("ة", "ه")
+    text = text.replace("ى", "ي")
+
+    text = re.sub(
+        r"[\u064B-\u065F\u0670]",
+        "",
+        text
     )
 
-    if published_at:
-        message += f"🕐 <b>تاريخ النشر:</b> {published_at}\n"
-
-    message += (
-        f"📰 <b>المصدر:</b> {source}\n\n"
-        f'🔗 <a href="{link}">التفاصيل والمصدر</a>'
+    text = re.sub(
+        r"[^\w\s\u0600-\u06FF]",
+        " ",
+        text
     )
 
-    return message
+    stop_words = {
+        "اعلان",
+        "اعلن",
+        "تعلن",
+        "شركة",
+        "السعودية",
+        "السعودي",
+        "اليوم",
+        "الجديد",
+        "جديدة",
+        "عن",
+        "في",
+        "من",
+        "الى",
+        "و",
+        "مع",
+        "ل",
+    }
+
+    words = text.split()
+
+    words = [
+        word
+        for word in words
+        if word not in stop_words
+    ]
+
+    return " ".join(words)
 
 
 # ============================================================
-# إرسال القناة
+# مقارنة العناوين
 # ============================================================
 
-async def send_to_channel():
-    if not BOT_TOKEN or not CHANNEL_ID:
-        print("❌ لم يتم ضبط BOT_TOKEN/TELEGRAM_TOKEN أو CHAT_ID.")
-        return
+def titles_are_similar(title1, title2):
 
-    print("🚀 Starting Healthcare Tender Bot...")
+    normalized1 = normalize_title(title1)
+    normalized2 = normalize_title(title2)
 
-    sent_links, sent_title_hashes = load_sent_history()
+    if not normalized1 or not normalized2:
+        return False
 
-    print(
-        f"📚 History loaded: "
-        f"{len(sent_links)} links / "
-        f"{len(sent_title_hashes)} title hashes"
+    if normalized1 == normalized2:
+        return True
+
+    sequence_ratio = SequenceMatcher(
+        None,
+        normalized1,
+        normalized2
+    ).ratio()
+
+    words1 = set(normalized1.split())
+    words2 = set(normalized2.split())
+
+    if not words1 or not words2:
+        return False
+
+    intersection = len(words1 & words2)
+    union = len(words1 | words2)
+
+    jaccard = intersection / union
+
+    if sequence_ratio >= TITLE_SIMILARITY_THRESHOLD:
+        return True
+
+    if jaccard >= 0.80 and intersection >= 4:
+        return True
+
+    return False
+
+
+# ============================================================
+# التاريخ
+# ============================================================
+
+def parse_date(date_text):
+
+    if not date_text:
+        return None
+
+    try:
+        return parsedate_to_datetime(
+            date_text
+        ).astimezone(timezone.utc)
+
+    except Exception:
+        return None
+
+
+def is_recent(date_text):
+
+    published = parse_date(date_text)
+
+    # لا يوجد تاريخ موثوق = تجاهل
+    if not published:
+        return False
+
+    now = datetime.now(timezone.utc)
+
+    age = now - published
+
+    # يمنع التواريخ المستقبلية الغريبة
+    if age.total_seconds() < -300:
+        return False
+
+    return age <= timedelta(
+        days=MAX_AGE_DAYS
     )
 
-    print("🔎 Fetching new opportunities...")
 
-    tenders = fetch_tenders()
+def format_date(date_text):
 
-    if not tenders:
-        print("⚠️ No relevant opportunities found.")
-        return
+    published = parse_date(date_text)
 
-    print(f"📊 Candidates found: {len(tenders)}")
+    if not published:
+        return ""
 
-    bot = Bot(token=BOT_TOKEN)
+    # السعودية UTC+3
+    saudi_time = published + timedelta(hours=3)
 
-    new_count = 0
-    duplicate_count = 0
-    error_count = 0
+    return saudi_time.strftime(
+        "%Y-%m-%d %H:%M"
+    )
 
-    for tender in tenders:
-        link = tender.get("link", "").strip()
-        title = tender.get("title", "").strip()
 
-        if not link or not title:
-            print("⚠️ Skipping incomplete result.")
-            continue
+# ============================================================
+# البحث عن الكلمات
+# ============================================================
 
-        current_hash = title_hash(title)
+def find_matches(text, keywords):
 
-        # التحقق من الرابط
-        if link in sent_links:
-            duplicate_count += 1
-            print(f"⏭️ Duplicate URL: {title}")
-            continue
+    text = text.lower()
 
-        # التحقق من بصمة العنوان
-        if current_hash in sent_title_hashes:
-            duplicate_count += 1
-            print(f"⏭️ Duplicate title: {title}")
-            continue
+    return [
+        keyword
+        for keyword in keywords
+        if keyword.lower() in text
+    ]
 
-        # تنسيق الرسالة
-        message = format_message(tender)
 
-        try:
-            await bot.send_message(
-                chat_id=CHANNEL_ID,
-                text=message,
-                parse_mode="HTML",
-                disable_web_page_preview=True
+# ============================================================
+# حساب داخلي فقط
+# ============================================================
+
+def calculate_score(title, description):
+
+    combined = f"{title} {description}".lower()
+    title_lower = title.lower()
+
+    medical_matches = find_matches(
+        combined,
+        MEDICAL_KEYWORDS
+    )
+
+    tender_matches = find_matches(
+        combined,
+        TENDER_KEYWORDS
+    )
+
+    weak_tender_matches = find_matches(
+        combined,
+        WEAK_TENDER_KEYWORDS
+    )
+
+    excluded_matches = find_matches(
+        combined,
+        EXCLUDE_WORDS
+    )
+
+    score = 0
+
+    if medical_matches:
+        score += 25
+
+    if medical_matches:
+        score += 25
+
+    if tender_matches:
+        score += 25
+
+    strong_tender_words = [
+        "مناقصة",
+        "منافسة",
+        "ترسية",
+        "توريد",
+        "طلب عروض",
+        "تأهيل الموردين",
+        "تأهيل موردين",
+    ]
+
+    if any(
+        word in title_lower
+        for word in strong_tender_words
+    ):
+        score += 15
+
+    if (
+        "نوبكو" in combined
+        or "nupco" in combined
+    ):
+        score += 10
+
+    score -= len(
+        excluded_matches
+    ) * 20
+
+    score = max(
+        0,
+        min(score, 100)
+    )
+
+    return {
+        "score": score,
+        "medical_matches": medical_matches,
+        "tender_matches": tender_matches,
+        "weak_tender_matches": weak_tender_matches,
+        "excluded_matches": excluded_matches,
+    }
+
+
+# ============================================================
+# القبول النهائي
+# ============================================================
+
+def is_valid_opportunity(
+    title,
+    description,
+    analysis
+):
+
+    # يجب أن يكون طبي
+    if not analysis["medical_matches"]:
+        return False
+
+    # يجب أن يكون شراء/توريد/مناقصة
+    if not analysis["tender_matches"]:
+        return False
+
+    # خدمات عامة مرفوضة
+    if analysis["excluded_matches"]:
+        return False
+
+    # الحد الأدنى
+    if analysis["score"] < MIN_SCORE:
+        return False
+
+    return True
+
+
+# ============================================================
+# التصنيف
+# ============================================================
+
+def classify_tender(text):
+
+    text = text.lower()
+
+    if (
+        "نوبكو" in text
+        or "nupco" in text
+    ):
+        return "🏢 مشتريات نوبكو"
+
+    if any(
+        word in text
+        for word in [
+            "مختبر",
+            "مختبرات",
+            "تحاليل",
+            "كواشف",
+            "كاشف",
+            "أجهزة مخبرية",
+            "معدات مخبرية",
+            "مستلزمات مخبرية",
+            "reagents",
+        ]
+    ):
+        return "🧪 مختبرات وكواشف"
+
+    if any(
+        word in text
+        for word in [
+            "أجهزة طبية",
+            "جهاز طبي",
+            "معدات طبية",
+            "مستلزمات طبية",
+            "مستهلكات طبية",
+            "تجهيزات طبية",
+        ]
+    ):
+        return "🔬 أجهزة ومستلزمات طبية"
+
+    if any(
+        word in text
+        for word in [
+            "أدوية",
+            "دواء",
+            "مستحضرات دوائية",
+            "صيدلية",
+            "pharmaceutical",
+        ]
+    ):
+        return "💊 أدوية وصيدلة"
+
+    return "🏥 توريدات صحية"
+
+
+# ============================================================
+# Google News RSS
+# ============================================================
+
+def fetch_google_rss(query):
+
+    cutoff_date = (
+        datetime.now(timezone.utc)
+        - timedelta(days=MAX_AGE_DAYS)
+    ).strftime("%Y-%m-%d")
+
+    query_with_date = (
+        f"{query} after:{cutoff_date}"
+    )
+
+    encoded_query = urllib.parse.quote(
+        query_with_date
+    )
+
+    rss_url = (
+        "https://news.google.com/rss/search"
+        f"?q={encoded_query}"
+        "&hl=ar"
+        "&gl=SA"
+        "&ceid=SA:ar"
+    )
+
+    results = []
+
+    try:
+
+        response = requests.get(
+            rss_url,
+            headers=HEADERS,
+            timeout=15
+        )
+
+        response.raise_for_status()
+
+        root = ET.fromstring(
+            response.content
+        )
+
+        for item in root.findall(
+            ".//item"
+        )[:20]:
+
+            title_element = item.find("title")
+            link_element = item.find("link")
+            description_element = item.find("description")
+            pub_date_element = item.find("pubDate")
+            source_element = item.find("source")
+
+            title = clean_text(
+                title_element.text
+                if title_element is not None
+                else ""
             )
 
-            # الحفظ فقط بعد نجاح الإرسال
-            save_to_history(link, title)
+            link = (
+                link_element.text.strip()
+                if link_element is not None
+                and link_element.text
+                else ""
+            )
 
-            sent_links.add(link)
-            sent_title_hashes.add(current_hash)
+            description = clean_text(
+                description_element.text
+                if description_element is not None
+                else ""
+            )
 
-            new_count += 1
-            print(f"✅ Sent: {title}")
+            pub_date = (
+                pub_date_element.text.strip()
+                if pub_date_element is not None
+                and pub_date_element.text
+                else ""
+            )
 
-            await asyncio.sleep(2)
+            source = (
+                source_element.text.strip()
+                if source_element is not None
+                and source_element.text
+                else "Google News"
+            )
 
-        except Exception as error:
-            error_count += 1
-            print(f"❌ Telegram error: {error}")
+            if not title or not link:
+                continue
 
-    # ملخص التشغيل
-    print("\n" + "=" * 55)
-    print("📊 BOT RUN SUMMARY")
-    print("=" * 55)
-    print(f"🔎 Candidates: {len(tenders)}")
-    print(f"✅ New sent: {new_count}")
-    print(f"⏭️ Duplicates skipped: {duplicate_count}")
-    print(f"❌ Errors: {error_count}")
-    print("=" * 55)
+            # التاريخ شرط إجباري
+            if not is_recent(pub_date):
+                print(
+                    f"⏳ OLD/INVALID: {title}"
+                )
+                continue
+
+            results.append({
+                "title": title,
+                "link": link,
+                "description": description,
+                "published_at": format_date(pub_date),
+                "source": source,
+            })
+
+    except requests.RequestException as error:
+
+        print(
+            f"❌ RSS request error: {error}"
+        )
+
+    except ET.ParseError as error:
+
+        print(
+            f"❌ RSS XML error: {error}"
+        )
+
+    except Exception as error:
+
+        print(
+            f"❌ Unexpected error: {error}"
+        )
+
+    return results
 
 
-def main():
-    asyncio.run(send_to_channel())
+# ============================================================
+# جلب المناقصات
+# ============================================================
+
+def fetch_tenders():
+
+    accepted = []
+
+    seen_links = set()
+    seen_titles = []
+
+    for query in QUERIES:
+
+        print(f"\n🔎 SEARCH: {query}")
+
+        items = fetch_google_rss(query)
+
+        for item in items:
+
+            title = item["title"]
+            link = item["link"]
+            description = item["description"]
+
+            # منع تكرار الرابط
+            if link in seen_links:
+                print(
+                    f"🔁 DUPLICATE URL: {title}"
+                )
+                continue
+
+            # منع العنوان المشابه
+            duplicate = False
+
+            for existing_title in seen_titles:
+
+                if titles_are_similar(
+                    title,
+                    existing_title
+                ):
+                    duplicate = True
+
+                    print(
+                        f"🔁 SIMILAR TITLE: {title}"
+                    )
+
+                    break
+
+            if duplicate:
+                continue
+
+            analysis = calculate_score(
+                title,
+                description
+            )
+
+            if not is_valid_opportunity(
+                title,
+                description,
+                analysis
+            ):
+                print(
+                    f"❌ REJECTED: {title}"
+                )
+                continue
+
+            seen_links.add(link)
+            seen_titles.append(title)
+
+            category = classify_tender(
+                f"{title} {description}"
+            )
+
+            accepted.append({
+                "title": title,
+                "link": link,
+                "description": description,
+                "published_at": item["published_at"],
+                "source": item["source"],
+                "category": category,
+                "score": analysis["score"],
+            })
+
+            print(
+                f"✅ ACCEPTED "
+                f"[{analysis['score']}/100]: "
+                f"{title}"
+            )
+
+    accepted.sort(
+        key=lambda x: x["score"],
+        reverse=True
+    )
+
+    print("\n" + "=" * 60)
+    print(
+        f"✅ FINAL ACCEPTED: {len(accepted)}"
+    )
+    print("=" * 60)
+
+    return accepted
 
 
 if __name__ == "__main__":
-    main()
+    fetch_tenders()
