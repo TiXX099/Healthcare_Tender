@@ -9,8 +9,10 @@ from difflib import SequenceMatcher
 
 
 # ============================================================
-# إعدادات عامة
+# SETTINGS
 # ============================================================
+
+MAX_AGE_DAYS = 7
 
 HEADERS = {
     "User-Agent": (
@@ -20,20 +22,12 @@ HEADERS = {
     )
 }
 
-# عمر الخبر المسموح
-MAX_AGE_DAYS = 7
-
-# نسبة التشابه لمنع تكرار نفس الخبر بصياغات مختلفة
-TITLE_SIMILARITY_THRESHOLD = 0.88
-
 
 # ============================================================
-# كلمات المجال الطبي والمخبري
+# MEDICAL / LABORATORY KEYWORDS
 # ============================================================
 
 MEDICAL_KEYWORDS = [
-
-    # مختبرات
     "مختبر",
     "مختبرات",
     "مختبري",
@@ -49,12 +43,7 @@ MEDICAL_KEYWORDS = [
     "كواشف مخبرية",
     "مواد تشخيصية",
     "تشخيص مخبري",
-    "laboratory",
-    "laboratories",
-    "diagnostic",
-    "reagents",
 
-    # أجهزة ومستلزمات طبية
     "أجهزة طبية",
     "جهاز طبي",
     "معدات طبية",
@@ -66,9 +55,7 @@ MEDICAL_KEYWORDS = [
     "معدات صحية",
     "مواد طبية",
     "مستلزمات المستشفيات",
-    "تجهيز طبي",
 
-    # الأدوية
     "أدوية",
     "دواء",
     "دوائية",
@@ -76,63 +63,52 @@ MEDICAL_KEYWORDS = [
     "مستحضرات صيدلانية",
     "صيدلية",
     "صيدليات",
-    "pharmaceutical",
 
-    # نوبكو
     "نوبكو",
-    "NUPCO",
+    "nupco",
+
+    "laboratory",
+    "laboratories",
+    "diagnostic",
+    "reagents",
 ]
 
 
 # ============================================================
-# كلمات المناقصات والتوريدات
+# TENDER / PROCUREMENT KEYWORDS
 # ============================================================
 
 TENDER_KEYWORDS = [
-
     "مناقصة",
     "مناقصات",
-
     "منافسة",
     "منافسات",
-
     "ترسية",
     "ترسيه",
-
     "توريد",
     "توريدات",
-
     "تأمين",
-
     "شراء",
     "مشتريات",
-
     "طلب عروض",
     "طلب عرض",
-
     "طلب تقديم عروض",
-
     "دعوة لتقديم العروض",
     "دعوة للمنافسة",
-
     "طرح منافسة",
     "طرح مناقصة",
-
     "تأهيل الموردين",
     "تأهيل موردين",
-
     "اتفاقية توريد",
     "عقد توريد",
 ]
 
 
 # ============================================================
-# كلمات تستبعد الأخبار غير المطلوبة
+# EXCLUDED CONTENT
 # ============================================================
 
 EXCLUDE_WORDS = [
-
-    # سياسية / عامة
     "غزة",
     "فلسطين",
     "حرب",
@@ -140,20 +116,17 @@ EXCLUDE_WORDS = [
     "سياسي",
     "انتخابات",
 
-    # مالية وأسهم
     "أرباح",
     "سهم",
     "أسهم",
     "البورصة",
     "تداول",
 
-    # رياضة
     "الرياضية",
     "رياضة",
     "كرة القدم",
     "دوري",
 
-    # خدمات عامة لا نريدها
     "نظافة",
     "حراسة",
     "أمن",
@@ -181,58 +154,51 @@ EXCLUDE_WORDS = [
 
 
 # ============================================================
-# استعلامات البحث
+# SEARCH QUERIES
 # ============================================================
 
 QUERIES = [
-
-    # مناقصات
     '"مناقصة" "مستلزمات طبية" السعودية',
     '"مناقصة" "أجهزة طبية" السعودية',
     '"مناقصة" "أجهزة مخبرية" السعودية',
     '"مناقصة" "كواشف" السعودية',
     '"مناقصة" مختبر السعودية',
 
-    # منافسات
     '"منافسة" "مستلزمات طبية" السعودية',
     '"منافسة" "أجهزة طبية" السعودية',
     '"منافسة" "أجهزة مخبرية" السعودية',
     '"منافسة" كواشف السعودية',
     '"منافسة" مختبر السعودية',
 
-    # توريد
     '"توريد" "مستلزمات طبية" السعودية',
     '"توريد" "أجهزة طبية" السعودية',
     '"توريد" "أجهزة مخبرية" السعودية',
     '"توريد" كواشف السعودية',
     '"توريد" مختبر السعودية',
 
-    # ترسية
     '"ترسية" "أجهزة طبية" السعودية',
     '"ترسية" "مستلزمات طبية" السعودية',
     '"ترسية" "أجهزة مخبرية" السعودية',
     '"ترسية" كواشف السعودية',
 
-    # نوبكو
     '"نوبكو" مناقصة السعودية',
     '"نوبكو" منافسة السعودية',
     '"نوبكو" توريد السعودية',
     '"نوبكو" ترسية السعودية',
+
     '"NUPCO" tender Saudi',
 
-    # طلب عروض
     '"طلب عروض" "أجهزة طبية" السعودية',
     '"طلب عروض" "مستلزمات طبية" السعودية',
     '"طلب عروض" مختبر السعودية',
 
-    # تأهيل
     '"تأهيل الموردين" طبي السعودية',
     '"تأهيل موردين" طبي السعودية',
 ]
 
 
 # ============================================================
-# تنظيف النص
+# CLEAN TEXT
 # ============================================================
 
 def clean_text(text):
@@ -247,7 +213,7 @@ def clean_text(text):
 
 
 # ============================================================
-# توحيد العنوان
+# NORMALIZE TITLE
 # ============================================================
 
 def normalize_title(title):
@@ -257,67 +223,35 @@ def normalize_title(title):
 
     text = title.lower()
 
-    # إزالة الروابط
-    text = re.sub(
-        r"https?://\S+",
-        "",
-        text
-    )
-
-    # توحيد بعض الحروف العربية
     text = text.replace("أ", "ا")
     text = text.replace("إ", "ا")
     text = text.replace("آ", "ا")
     text = text.replace("ة", "ه")
     text = text.replace("ى", "ي")
 
-    # إزالة التشكيل
     text = re.sub(
         r"[\u064B-\u065F\u0670]",
         "",
         text
     )
 
-    # إزالة علامات الترقيم
     text = re.sub(
         r"[^\w\s\u0600-\u06FF]",
         " ",
         text
     )
 
-    # كلمات عامة لا تفيد في مقارنة الأخبار
-    stop_words = {
-        "اعلان",
-        "اعلن",
-        "تعلن",
-        "شركة",
-        "السعودية",
-        "السعودي",
-        "جديدة",
-        "الجديدة",
-        "عن",
-        "في",
-        "من",
-        "الى",
-        "و",
-        "مع",
-        "ل",
-        "على",
-    }
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
 
-    words = text.split()
-
-    words = [
-        word
-        for word in words
-        if word not in stop_words
-    ]
-
-    return " ".join(words)
+    return text.strip()
 
 
 # ============================================================
-# مقارنة عنوانين
+# SIMILAR TITLES
 # ============================================================
 
 def titles_are_similar(title1, title2):
@@ -337,48 +271,25 @@ def titles_are_similar(title1, title2):
         b
     ).ratio()
 
-    if ratio >= TITLE_SIMILARITY_THRESHOLD:
-        return True
-
-    words_a = set(a.split())
-    words_b = set(b.split())
-
-    if not words_a or not words_b:
-        return False
-
-    intersection = len(
-        words_a & words_b
-    )
-
-    union = len(
-        words_a | words_b
-    )
-
-    jaccard = intersection / union
-
-    if jaccard >= 0.80 and intersection >= 4:
-        return True
-
-    return False
+    return ratio >= 0.88
 
 
 # ============================================================
-# استخراج الكلمات الموجودة
+# KEYWORD MATCH
 # ============================================================
 
-def find_matches(text, keywords):
+def has_keyword(text, keywords):
 
     text = text.lower()
 
-    return [
-        keyword
+    return any(
+        keyword.lower() in text
         for keyword in keywords
-        if keyword.lower() in text
-    ]
+    )
 
 
 # ============================================================
-# قراءة تاريخ الخبر
+# PARSE DATE
 # ============================================================
 
 def parse_date(date_text):
@@ -388,16 +299,16 @@ def parse_date(date_text):
 
     try:
 
-        parsed = parsedate_to_datetime(
+        dt = parsedate_to_datetime(
             date_text
         )
 
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(
+        if dt.tzinfo is None:
+            dt = dt.replace(
                 tzinfo=timezone.utc
             )
 
-        return parsed.astimezone(
+        return dt.astimezone(
             timezone.utc
         )
 
@@ -407,132 +318,66 @@ def parse_date(date_text):
 
 
 # ============================================================
-# التأكد أن الخبر حديث
+# RECENT NEWS CHECK
 # ============================================================
 
 def is_recent(date_text):
 
-    published = parse_date(
-        date_text
-    )
+    dt = parse_date(date_text)
 
-    if not published:
+    if not dt:
         return False
 
     now = datetime.now(
         timezone.utc
     )
 
-    age = now - published
+    age = now - dt
 
-    # الأخبار المستقبلية الغريبة
-    if age.total_seconds() < -300:
-        return False
-
-    return age <= timedelta(
-        days=MAX_AGE_DAYS
+    return (
+        age >= timedelta(minutes=-5)
+        and age <= timedelta(
+            days=MAX_AGE_DAYS
+        )
     )
 
 
 # ============================================================
-# تنسيق التاريخ
+# DATE FORMAT
 # ============================================================
 
 def format_date(date_text):
 
-    published = parse_date(
-        date_text
-    )
+    dt = parse_date(date_text)
 
-    if not published:
+    if not dt:
         return ""
 
-    # توقيت السعودية UTC+3
-    saudi_time = (
-        published + timedelta(hours=3)
-    )
+    # Saudi Arabia UTC+3
+    dt_saudi = dt + timedelta(hours=3)
 
-    return saudi_time.strftime(
+    return dt_saudi.strftime(
         "%Y-%m-%d %H:%M"
     )
 
 
 # ============================================================
-# تصنيف داخلي
-# ============================================================
-
-def classify_tender(text):
-
-    text = text.lower()
-
-    if (
-        "نوبكو" in text
-        or "nupco" in text
-    ):
-        return "🏢 مشتريات نوبكو"
-
-    if any(
-        word in text
-        for word in [
-            "مختبر",
-            "مختبرات",
-            "تحاليل",
-            "كواشف",
-            "كاشف",
-            "أجهزة مخبرية",
-            "معدات مخبرية",
-            "مستلزمات مخبرية",
-            "reagents",
-        ]
-    ):
-        return "🧪 مختبرات وكواشف"
-
-    if any(
-        word in text
-        for word in [
-            "أجهزة طبية",
-            "جهاز طبي",
-            "معدات طبية",
-            "مستلزمات طبية",
-            "مستهلكات طبية",
-            "تجهيزات طبية",
-        ]
-    ):
-        return "🔬 أجهزة ومستلزمات طبية"
-
-    if any(
-        word in text
-        for word in [
-            "أدوية",
-            "دواء",
-            "مستحضرات دوائية",
-            "صيدلية",
-            "pharmaceutical",
-        ]
-    ):
-        return "💊 أدوية وصيدلة"
-
-    return "🏥 توريدات صحية"
-
-
-# ============================================================
-# تحميل Google News RSS
+# FETCH GOOGLE RSS
 # ============================================================
 
 def fetch_google_rss(query):
 
-    # نطلب فقط الأخبار المنشورة خلال الفترة المطلوبة
-    cutoff_date = (
+    cutoff = (
         datetime.now(timezone.utc)
         - timedelta(days=MAX_AGE_DAYS)
     ).strftime("%Y-%m-%d")
 
-    query_with_date = (
-        f"{query} after:{cutoff_date}"
+    final_query = (
+        f"{query} after:{cutoff}"
     )
 
     encoded_query = urllib.parse.quote(
-        query_with_date
+        final_query
     )
 
     rss_url = (
@@ -553,7 +398,12 @@ def fetch_google_rss(query):
             timeout=15
         )
 
-        response.raise_for_status()
+        print(
+            f"   HTTP: {response.status_code}"
+        )
+
+        if response.status_code != 200:
+            return []
 
         root = ET.fromstring(
             response.content
@@ -563,134 +413,125 @@ def fetch_google_rss(query):
             ".//item"
         )
 
+        print(
+            f"   Results found: {len(items)}"
+        )
+
         for item in items[:20]:
 
-            title_element = item.find(
+            title_node = item.find(
                 "title"
             )
 
-            link_element = item.find(
+            link_node = item.find(
                 "link"
             )
 
-            description_element = (
-                item.find("description")
+            description_node = item.find(
+                "description"
             )
 
-            pub_date_element = (
-                item.find("pubDate")
+            date_node = item.find(
+                "pubDate"
             )
 
-            source_element = (
-                item.find("source")
+            source_node = item.find(
+                "source"
             )
 
             title = clean_text(
-                title_element.text
-                if title_element is not None
+                title_node.text
+                if title_node is not None
                 else ""
             )
 
-            link = (
-                link_element.text.strip()
-                if (
-                    link_element is not None
-                    and link_element.text
-                )
+            link = clean_text(
+                link_node.text
+                if link_node is not None
                 else ""
             )
 
             description = clean_text(
-                description_element.text
-                if description_element is not None
+                description_node.text
+                if description_node is not None
                 else ""
             )
 
-            pub_date = (
-                pub_date_element.text.strip()
-                if (
-                    pub_date_element is not None
-                    and pub_date_element.text
-                )
+            pub_date = clean_text(
+                date_node.text
+                if date_node is not None
                 else ""
             )
 
-            source = (
-                source_element.text.strip()
-                if (
-                    source_element is not None
-                    and source_element.text
-                )
-                else "Google News"
+            source = clean_text(
+                source_node.text
+                if source_node is not None
+                else ""
             )
 
             if not title or not link:
-                continue
-
-            # التاريخ شرط أساسي
-            if not is_recent(pub_date):
-
-                print(
-                    f"⏳ OLD: {title}"
-                )
-
                 continue
 
             results.append({
                 "title": title,
                 "link": link,
                 "description": description,
-                "published_at": format_date(
-                    pub_date
-                ),
+                "pub_date": pub_date,
                 "source": source,
+                "query": query,
             })
-
-    except requests.RequestException as error:
-
-        print(
-            f"❌ RSS request error: {error}"
-        )
-
-    except ET.ParseError as error:
-
-        print(
-            f"❌ RSS XML error: {error}"
-        )
 
     except Exception as error:
 
         print(
-            f"❌ Unexpected error: {error}"
+            f"❌ RSS ERROR: {error}"
         )
 
     return results
 
 
 # ============================================================
-# التحقق من أن الخبر فرصة طبية فعلًا
+# VALIDATE OPPORTUNITY
 # ============================================================
 
-def is_valid_opportunity(
-    title,
-    description
-):
+def is_valid_opportunity(item):
 
-    # ندمج العنوان والوصف
-    combined_text = (
-        f"{title} {description}"
+    title = item["title"]
+    description = item["description"]
+    query = item["query"]
+
+    # نستخدم العنوان + الوصف + الاستعلام
+    # لأن الاستعلام نفسه يحدد مجال الخبر
+    searchable_text = (
+        f"{title} "
+        f"{description} "
+        f"{query}"
     ).lower()
 
-    # ---------------------------------------------
-    # 1. يجب وجود كلمة طبية
-    # ---------------------------------------------
+    # --------------------------------------------------------
+    # التاريخ
+    # --------------------------------------------------------
 
-    medical_matches = find_matches(
-        combined_text,
+    if not is_recent(
+        item["pub_date"]
+    ):
+
+        print(
+            f"⏳ OLD/NO DATE: {title}"
+        )
+
+        return False
+
+    # --------------------------------------------------------
+    # يجب أن يكون طبي
+    # --------------------------------------------------------
+
+    medical = has_keyword(
+        searchable_text,
         MEDICAL_KEYWORDS
     )
 
-    if not medical_matches:
+    if not medical:
 
         print(
             f"❌ NOT MEDICAL: {title}"
@@ -698,16 +539,16 @@ def is_valid_opportunity(
 
         return False
 
-    # ---------------------------------------------
-    # 2. يجب وجود كلمة مناقصة/توريد
-    # ---------------------------------------------
+    # --------------------------------------------------------
+    # يجب أن يكون مناقصة / توريد
+    # --------------------------------------------------------
 
-    tender_matches = find_matches(
-        combined_text,
+    tender = has_keyword(
+        searchable_text,
         TENDER_KEYWORDS
     )
 
-    if not tender_matches:
+    if not tender:
 
         print(
             f"❌ NOT TENDER: {title}"
@@ -715,46 +556,29 @@ def is_valid_opportunity(
 
         return False
 
-    # ---------------------------------------------
-    # 3. الكلمات المستبعدة
-    # ---------------------------------------------
+    # --------------------------------------------------------
+    # استبعاد المحتوى غير المطلوب
+    # --------------------------------------------------------
 
-    excluded_matches = find_matches(
-        combined_text,
-        EXCLUDE_WORDS
-    )
+    excluded = [
+        word
+        for word in EXCLUDE_WORDS
+        if word.lower() in title.lower()
+    ]
 
-    if excluded_matches:
+    if excluded:
 
         print(
-            f"❌ EXCLUDED "
-            f"{excluded_matches}: "
-            f"{title}"
+            f"❌ EXCLUDED {excluded}: {title}"
         )
 
         return False
-
-    # ---------------------------------------------
-    # 4. إذا كان الخبر عن نوبكو
-    # نسمح به إذا كان مرتبطًا بمناقصة/شراء/توريد
-    # ---------------------------------------------
-
-    if (
-        "نوبكو" in combined_text
-        or "nupco" in combined_text
-    ):
-
-        return True
-
-    # ---------------------------------------------
-    # 5. قبول الخبر
-    # ---------------------------------------------
 
     return True
 
 
 # ============================================================
-# جلب جميع الفرص
+# FETCH TENDERS
 # ============================================================
 
 def fetch_tenders():
@@ -764,54 +588,41 @@ def fetch_tenders():
     seen_links = set()
     seen_titles = []
 
+    total_results = 0
+
     for query in QUERIES:
 
+        print()
         print(
-            f"\n🔎 SEARCH: {query}"
+            f"🔎 SEARCH: {query}"
         )
 
         items = fetch_google_rss(
             query
         )
 
-        if not items:
-
-            print(
-                "   ↳ No results"
-            )
-
-            continue
+        total_results += len(items)
 
         for item in items:
 
-            title = item[
-                "title"
-            ]
+            title = item["title"]
+            link = item["link"]
 
-            link = item[
-                "link"
-            ]
-
-            description = item[
-                "description"
-            ]
-
-            # =========================================
-            # منع تكرار الرابط
-            # =========================================
+            # ------------------------------------------------
+            # URL duplicate
+            # ------------------------------------------------
 
             if link in seen_links:
 
                 print(
-                    f"🔁 DUPLICATE URL: "
-                    f"{title}"
+                    f"🔁 DUPLICATE URL: {title}"
                 )
 
                 continue
 
-            # =========================================
-            # منع تكرار العنوان
-            # =========================================
+            # ------------------------------------------------
+            # Similar title duplicate
+            # ------------------------------------------------
 
             duplicate = False
 
@@ -822,85 +633,61 @@ def fetch_tenders():
                     old_title
                 ):
 
-                    duplicate = True
-
                     print(
-                        f"🔁 SIMILAR TITLE: "
-                        f"{title}"
+                        f"🔁 SIMILAR TITLE: {title}"
                     )
 
+                    duplicate = True
                     break
 
             if duplicate:
                 continue
 
-            # =========================================
-            # الفلترة
-            # =========================================
+            # ------------------------------------------------
+            # Validate
+            # ------------------------------------------------
 
             if not is_valid_opportunity(
-                title,
-                description
+                item
             ):
-
                 continue
 
-            # =========================================
-            # قبول الخبر
-            # =========================================
+            # ------------------------------------------------
+            # Accept
+            # ------------------------------------------------
 
-            seen_links.add(
-                link
-            )
-
-            seen_titles.append(
-                title
-            )
-
-            category = classify_tender(
-                f"{title} {description}"
-            )
+            seen_links.add(link)
+            seen_titles.append(title)
 
             accepted.append({
                 "title": title,
                 "link": link,
-                "description": description,
-                "published_at": item[
-                    "published_at"
-                ],
-                "source": item[
-                    "source"
-                ],
-                "category": category,
+                "description": item["description"],
+                "published_at": format_date(
+                    item["pub_date"]
+                ),
+                "source": item["source"],
             })
 
             print(
                 f"✅ ACCEPTED: {title}"
             )
 
-    # ترتيب الأحدث أولاً
-    accepted.sort(
-        key=lambda x: x.get(
-            "published_at",
-            ""
-        ),
-        reverse=True
-    )
-
-    print("\n" + "=" * 60)
-
+    print()
+    print("=" * 60)
     print(
-        f"✅ FINAL ACCEPTED: "
-        f"{len(accepted)}"
+        f"📊 TOTAL RSS RESULTS: {total_results}"
     )
-
+    print(
+        f"✅ FINAL ACCEPTED: {len(accepted)}"
+    )
     print("=" * 60)
 
     return accepted
 
 
 # ============================================================
-# تشغيل مباشر للاختبار
+# TEST
 # ============================================================
 
 if __name__ == "__main__":
