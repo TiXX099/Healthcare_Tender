@@ -1,312 +1,85 @@
-import os
+"""
+bot.py
+------
+يشغّل السكرابر، يفلتر الأخبار الجديدة (غير المُرسلة سابقًا)، ويرسلها إلى
+قناة التليجرام عبر مكتبة python-telegram-bot (async).
+
+المتغيرات المطلوبة في البيئة (Environment Variables):
+    TELEGRAM_BOT_TOKEN   -> توكن البوت من BotFather
+    TELEGRAM_CHANNEL_ID  -> معرف القناة، مثال: @my_channel أو -1001234567890
+"""
+
 import asyncio
+import os
 
 from telegram import Bot
-from scraper import fetch_tenders
+from telegram.constants import ParseMode
 
+from scraper import get_all_tenders
 
-BOT_TOKEN = (
-    os.getenv("BOT_TOKEN")
-    or os.getenv("TELEGRAM_TOKEN")
-)
-
-CHANNEL_ID = os.getenv("CHAT_ID")
-
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID", "")
 HISTORY_FILE = "sent_history.txt"
 
 
-# ============================================================
-# قراءة سجل الأخبار المرسلة
-# ============================================================
-
-def load_sent_history():
-
+def load_sent_ids() -> set:
+    """يقرأ ملف sent_history.txt (سطر لكل معرف/hash تم إرساله سابقًا)"""
     if not os.path.exists(HISTORY_FILE):
         return set()
+    with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        return {line.strip() for line in f if line.strip()}
 
-    with open(
-        HISTORY_FILE,
-        "r",
-        encoding="utf-8"
-    ) as f:
 
-        return set(
-            line.strip()
-            for line in f
-            if line.strip()
+def append_sent_id(item_id: str) -> None:
+    with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+        f.write(item_id + "\n")
+
+
+def build_message(item: dict) -> str:
+    text = "📢 <b>مناقصة / خبر طبي جديد</b>\n\n"
+    text += f"📝 {item['title']}\n"
+    if item.get("source"):
+        text += f"🏷️ المصدر: {item['source']}\n"
+    text += f"\n🔗 {item['link']}"
+    return text
+
+
+async def send_new_tenders() -> None:
+    if not BOT_TOKEN or not CHANNEL_ID:
+        raise RuntimeError(
+            "لم يتم تعيين TELEGRAM_BOT_TOKEN أو TELEGRAM_CHANNEL_ID في متغيرات البيئة"
         )
 
+    bot = Bot(token=BOT_TOKEN)
+    sent_ids = load_sent_ids()
 
-# ============================================================
-# حفظ معرف الخبر
-# ============================================================
+    print("🔎 جاري البحث عن أخبار مناقصات طبية جديدة...")
+    all_items = get_all_tenders()
+    new_items = [item for item in all_items if item["id"] not in sent_ids]
 
-def save_to_history(key):
+    print(f"📊 إجمالي العناصر: {len(all_items)} | جديدة: {len(new_items)}")
 
-    with open(
-        HISTORY_FILE,
-        "a",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(key + "\n")
-
-
-# ============================================================
-# إنشاء مفتاح ثابت للخبر
-# ============================================================
-
-def get_history_key(tender):
-
-    # الرابط هو أفضل معرف لمنع التكرار
-    link = tender.get("link", "").strip()
-
-    if link:
-        return link
-
-    # احتياطياً نستخدم العنوان
-    title = tender.get(
-        "title",
-        ""
-    ).strip()
-
-    return title
-
-
-# ============================================================
-# إنشاء رسالة Telegram
-# ============================================================
-
-def format_message(tender):
-
-    title = tender.get(
-        "title",
-        ""
-    )
-
-    link = tender.get(
-        "link",
-        ""
-    )
-
-    category = tender.get(
-        "category",
-        "توريدات صحية"
-    )
-
-    published_at = tender.get(
-        "published_at",
-        ""
-    )
-
-    source = tender.get(
-        "source",
-        ""
-    )
-
-    message = (
-        "🏥 **فرصة صحية جديدة**\n\n"
-        f"📌 {title}\n\n"
-        f"📂 التصنيف: {category}\n"
-    )
-
-    if published_at:
-        message += (
-            f"🕐 تاريخ النشر: "
-            f"{published_at}\n"
-        )
-
-    if source:
-        message += (
-            f"📰 المصدر: {source}\n"
-        )
-
-    message += (
-        "\n🔗 [التفاصيل والمصدر]"
-        f"({link})"
-    )
-
-    return message
-
-
-# ============================================================
-# إرسال الأخبار
-# ============================================================
-
-async def send_to_channel():
-
-    print("=" * 60)
-    print("🚀 HEALTHCARE TENDER BOT STARTED")
-    print("=" * 60)
-
-    # --------------------------------------------------------
-    # التأكد من Secrets
-    # --------------------------------------------------------
-
-    if not BOT_TOKEN:
-
-        print(
-            "❌ BOT_TOKEN / TELEGRAM_TOKEN "
-            "غير موجود"
-        )
-
-        return
-
-    if not CHANNEL_ID:
-
-        print(
-            "❌ CHAT_ID غير موجود"
-        )
-
-        return
-
-    print("✅ Telegram token found")
-    print(
-        f"✅ Channel ID: {CHANNEL_ID}"
-    )
-
-    # --------------------------------------------------------
-    # جلب الأخبار
-    # --------------------------------------------------------
-
-    print("\n🔎 Fetching tenders...")
-
-    tenders = fetch_tenders()
-
-    print(
-        f"\n📊 Scraper returned: "
-        f"{len(tenders)}"
-    )
-
-    if not tenders:
-
-        print(
-            "⚠️ لا توجد فرص مقبولة حالياً."
-        )
-
-        return
-
-    # --------------------------------------------------------
-    # قراءة History
-    # --------------------------------------------------------
-
-    sent_history = load_sent_history()
-
-    print(
-        f"📚 History contains: "
-        f"{len(sent_history)} items"
-    )
-
-    # --------------------------------------------------------
-    # تشغيل البوت
-    # --------------------------------------------------------
-
-    bot = Bot(
-        token=BOT_TOKEN
-    )
-
-    new_count = 0
-
-    for tender in tenders:
-
-        title = tender.get(
-            "title",
-            ""
-        )
-
-        link = tender.get(
-            "link",
-            ""
-        )
-
-        history_key = get_history_key(
-            tender
-        )
-
-        print("\n--------------------------------")
-        print(
-            f"📌 Checking: {title}"
-        )
-
-        # ----------------------------------------------------
-        # منع التكرار
-        # ----------------------------------------------------
-
-        if history_key in sent_history:
-
-            print(
-                "🔁 SKIPPED: Already sent"
-            )
-
-            continue
-
-        # ----------------------------------------------------
-        # إنشاء الرسالة
-        # ----------------------------------------------------
-
-        message = format_message(
-            tender
-        )
-
+    sent_count = 0
+    for item in new_items:
         try:
-
             await bot.send_message(
                 chat_id=CHANNEL_ID,
-                text=message,
-                parse_mode="Markdown",
-                disable_web_page_preview=True
+                text=build_message(item),
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=False,
             )
+            append_sent_id(item["id"])
+            sent_count += 1
+            await asyncio.sleep(1.5)  # تجنب حدود التليجرام لمعدل الإرسال
+        except Exception as e:
+            print(f"⚠️ خطأ أثناء إرسال عنصر: {e}")
 
-            # حفظ الرابط مباشرة بعد نجاح الإرسال
-            save_to_history(
-                history_key
-            )
-
-            sent_history.add(
-                history_key
-            )
-
-            new_count += 1
-
-            print(
-                "✅ SENT SUCCESSFULLY"
-            )
-
-            # تأخير بسيط بين الرسائل
-            await asyncio.sleep(2)
-
-        except Exception as error:
-
-            print(
-                f"❌ TELEGRAM ERROR: "
-                f"{error}"
-            )
-
-    # --------------------------------------------------------
-    # النتيجة النهائية
-    # --------------------------------------------------------
-
-    print("\n" + "=" * 60)
-
-    print(
-        f"✅ NEW MESSAGES SENT: "
-        f"{new_count}"
-    )
-
-    print("=" * 60)
+    print(f"✅ تم إرسال {sent_count} خبر/مناقصة جديدة إلى القناة")
 
 
-# ============================================================
-# Main
-# ============================================================
-
-def main():
-
-    asyncio.run(
-        send_to_channel()
-    )
+def main() -> None:
+    asyncio.run(send_new_tenders())
 
 
 if __name__ == "__main__":
-
     main()
