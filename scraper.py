@@ -1,29 +1,53 @@
 import re
+import time
 import requests
 import feedparser
+from datetime import datetime, date
 from bs4 import BeautifulSoup
 
-# الكلمات المفتاحية للمجال الطبي والصحي في السعودية
-KEYWORDS = [
-    "مستشفى", "مستشفيات", "أدوية", "مستلزمات طبية", "أجهزة طبية",
-    "تجهيزات طبية", "صحة", "الصحة", "تشغيل طبي", "صيانة طبية",
-    "صيدلة", "مختبرات", "عيادات", "تأمين طبي", "حلول صحية"
+# الكلمات المفتاحية للمناقصات
+TENDER_KEYWORDS = [
+    "مناقصة", "مناقصات", "عطاء", "عطاءات", "شراء موحد", 
+    "توريد أدوية", "تأمين أجهزة", "مستلزمات طبية", "تشغيل مستشفى"
 ]
 
-def is_medical_saudi(text):
-    """التحقق من ارتباط النص بالقطاع الصحي في السعودية"""
-    pattern = re.compile("|".join(KEYWORDS), re.IGNORECASE)
-    return bool(pattern.search(text))
+# كلمات الاستبعاد (تمنع الأخبار الخارجية)
+EXCLUDE_KEYWORDS = [
+    "صنعاء", "اليوم السابع", "مصر", "موريتانية", "البرلمان", 
+    "الإسرائيلية", "الزنداني", "جنيه", "صوت الأمة", "يمن برس"
+]
+
+def is_from_today_onwards(entry):
+    """تحديد هل الخبر منشور بتاريخ اليوم أو بعده حصراً"""
+    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+        # استخراج تاريخ الخبر فقط (سنة - شهر - يوم)
+        entry_date = datetime.fromtimestamp(time.mktime(entry.published_parsed)).date()
+        today = date.today()  # يقرأ تاريخ اليوم تلقائياً عند التشغيل (مثلاً 2026-08-29)
+        
+        # قبول الخبر فقط إذا كان تاريخه يساوي اليوم أو بعده
+        if entry_date < today:
+            return False
+    return True
+
+def is_valid_saudi_tender(title):
+    """التحقق من أن الخبر مناقصة سعودية دون أي مصادر خارجية"""
+    for ex in EXCLUDE_KEYWORDS:
+        if ex in title:
+            return False
+            
+    pattern = re.compile("|".join(TENDER_KEYWORDS), re.IGNORECASE)
+    return bool(pattern.search(title))
 
 def fetch_google_news():
-    """جلب الأخبار والمناقصات من Google News RSS"""
-    query = 'مناقصات صحية OR مناقصات طبية OR نوبكو OR "وزارة الصحة" السعودية'
+    """جلب مناقصات الصحة من Google News المنشورة بدءاً من اليوم"""
+    query = '("مناقصة" OR "مناقصات" OR "شراء موحد") AND ("الصحة" OR "نوبكو" OR "مستشفى") site:.sa OR site:news.google.com'
     rss_url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=ar&gl=SA&ceid=SA:ar"
     
     feed = feedparser.parse(rss_url)
     items = []
     for entry in feed.entries:
-        if is_medical_saudi(entry.title):
+        # فحص التاريخ (اليوم وما بعده) + الفلترة المفهومية
+        if is_from_today_onwards(entry) and is_valid_saudi_tender(entry.title):
             items.append({
                 "id": entry.link,
                 "title": entry.title,
@@ -33,7 +57,7 @@ def fetch_google_news():
     return items
 
 def fetch_etimad():
-    """جلب مناقصات منصة اعتماد للقطاع الصحي"""
+    """جلب مناقصات القطاع الصحي من منصة اعتماد الحكومية"""
     url = "https://tenders.etimad.sa/Tender/AllTendersForVisitor"
     items = []
     try:
@@ -44,10 +68,10 @@ def fetch_etimad():
             cards = soup.find_all('div', class_='card-content')
             for card in cards:
                 text = card.get_text()
-                if is_medical_saudi(text):
+                if any(k in text for k in ["صحة", "مستشفى", "أدوية", "طبي", "مختبر"]) and is_valid_saudi_tender(text):
                     link_tag = card.find('a', href=True)
                     tender_link = "https://tenders.etimad.sa" + link_tag['href'] if link_tag else url
-                    tender_title = card.find('h3').get_text(strip=True) if card.find('h3') else "مناقصة صحية جديدة"
+                    tender_title = card.find('h3').get_text(strip=True) if card.find('h3') else "مناقصة صحية - اعتماد"
                     items.append({
                         "id": tender_link,
                         "title": tender_title,
@@ -59,24 +83,23 @@ def fetch_etimad():
     return items
 
 def fetch_nupco_and_nafas():
-    """جلب أخبار ومناقصات نوبكو ونافس"""
-    queries = ['"نوبكو" OR "NUPCO"', '"منصة نافس" OR "نافس الطبية"']
+    """جلب مناقصات نوبكو ونافس المنشورة بدءاً من اليوم"""
+    query = '("مناقصة" OR "مناقصات" OR "عطاءات") AND ("نوبكو" OR "نافس")'
+    rss_url = f"https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=ar&gl=SA&ceid=SA:ar"
+    
+    feed = feedparser.parse(rss_url)
     items = []
-    for q in queries:
-        rss_url = f"https://news.google.com/rss/search?q={requests.utils.quote(q)}&hl=ar&gl=SA&ceid=SA:ar"
-        feed = feedparser.parse(rss_url)
-        for entry in feed.entries:
-            if is_medical_saudi(entry.title):
-                items.append({
-                    "id": entry.link,
-                    "title": entry.title,
-                    "source": "نوبكو / نافس",
-                    "link": entry.link
-                })
+    for entry in feed.entries:
+        if is_from_today_onwards(entry) and is_valid_saudi_tender(entry.title):
+            items.append({
+                "id": entry.link,
+                "title": entry.title,
+                "source": "نوبكو / نافس",
+                "link": entry.link
+            })
     return items
 
 def get_all_tenders():
-    """تجميع كافة البيانات المفلترة"""
     tenders = []
     tenders.extend(fetch_google_news())
     tenders.extend(fetch_etimad())
