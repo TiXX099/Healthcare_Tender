@@ -1,39 +1,46 @@
-name: Run Healthcare Tender Bot
+name: Saudi Healthcare Tender Bot
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # تشغيل آلي كل 6 ساعات
-  workflow_dispatch:       # تشغيل يدوي للتجربة
+    - cron: "*/30 * * * *"
+
+  workflow_dispatch:
 
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run bot script
+      - name: Run tender bot
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python bot.py
-
-      - name: Save sent history to GitHub
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add sent_history.txt || true
-          git commit -m "Automated update of sent_history.txt" || true
+          python main.py
+
+      - name: Save history
+        run: |
+          git config --global user.name "Tender Bot"
+          git config --global user.email "tender-bot@users.noreply.github.com"
+
+          git add history.json
+
+          git diff --cached --quiet || git commit -m "Update tender history"
+
           git push
