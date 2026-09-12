@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 
 # ============================================================
-# Trusted Saudi sources
+# TRUSTED SAUDI SOURCES
 # ============================================================
 
 TRUSTED_SAUDI_DOMAINS = {
@@ -25,7 +25,7 @@ TRUSTED_SAUDI_SOURCES = {
 
 
 # ============================================================
-# Saudi context
+# SAUDI CONTEXT
 # ============================================================
 
 SAUDI_TERMS = {
@@ -110,10 +110,15 @@ SAUDI_ENTITIES = {
 
 
 # ============================================================
-# ONLY wanted categories
+# TARGET CATEGORIES
+# ONLY THESE 4 CATEGORIES ARE ALLOWED
 # ============================================================
 
 CATEGORY_TERMS = {
+
+    # --------------------------------------------------------
+    # 1. Laboratories
+    # --------------------------------------------------------
 
     "مختبرات": {
         "مختبر",
@@ -129,6 +134,7 @@ CATEGORY_TERMS = {
         "كواشف مخبرية",
         "كواشف مختبرية",
         "محاليل مختبرية",
+        "محاليل مخبرية",
 
         "laboratory",
         "laboratories",
@@ -142,6 +148,10 @@ CATEGORY_TERMS = {
         "reagents",
     },
 
+
+    # --------------------------------------------------------
+    # 2. Medical Supplies
+    # --------------------------------------------------------
 
     "مستلزمات طبية": {
         "مستلزمات طبية",
@@ -160,6 +170,10 @@ CATEGORY_TERMS = {
     },
 
 
+    # --------------------------------------------------------
+    # 3. Medical Devices & Equipment
+    # --------------------------------------------------------
+
     "أجهزة ومعدات طبية": {
         "أجهزة طبية",
         "اجهزة طبية",
@@ -176,6 +190,10 @@ CATEGORY_TERMS = {
         "healthcare equipment",
     },
 
+
+    # --------------------------------------------------------
+    # 4. Diagnostics
+    # --------------------------------------------------------
 
     "تشخيص": {
         "تشخيص",
@@ -197,7 +215,7 @@ CATEGORY_TERMS = {
 
 
 # ============================================================
-# Tender / procurement context
+# TENDER / PROCUREMENT TERMS
 # ============================================================
 
 TENDER_TERMS = {
@@ -245,49 +263,71 @@ TENDER_TERMS = {
 
 
 # ============================================================
-# Categories we DO NOT want
+# EXCLUDED CATEGORIES
 # ============================================================
 
 EXCLUDED_CATEGORY_TERMS = {
 
+    # --------------------------------------------------------
     # Pharmaceuticals
+    # --------------------------------------------------------
+
     "أدوية",
     "ادوية",
     "دواء",
     "صيدلية",
     "صيدليات",
+
     "pharmaceutical",
     "pharmaceuticals",
     "medicine",
     "medicines",
     "drugs",
 
+    # --------------------------------------------------------
     # Dental
+    # --------------------------------------------------------
+
     "أسنان",
     "اسنان",
     "dental",
 
+    # --------------------------------------------------------
     # Nursing
+    # --------------------------------------------------------
+
     "تمريض",
     "nursing",
 
-    # Nutrition / food
+    # --------------------------------------------------------
+    # Nutrition / Food
+    # --------------------------------------------------------
+
     "تغذية",
     "nutrition",
     "غذاء",
     "food",
 
-    # General services
+    # --------------------------------------------------------
+    # General Medical Services
+    # --------------------------------------------------------
+
     "خدمات طبية",
     "medical services",
 
+    # --------------------------------------------------------
     # Jobs
+    # --------------------------------------------------------
+
     "وظائف",
     "وظيفة",
     "job",
     "jobs",
 
+    # --------------------------------------------------------
     # Events
+    # --------------------------------------------------------
+
     "مؤتمر",
     "مؤتمرات",
     "conference",
@@ -297,7 +337,10 @@ EXCLUDED_CATEGORY_TERMS = {
     "webinar",
     "webinars",
 
+    # --------------------------------------------------------
     # Other irrelevant content
+    # --------------------------------------------------------
+
     "رياضة",
     "sports",
     "سياحة",
@@ -306,7 +349,7 @@ EXCLUDED_CATEGORY_TERMS = {
 
 
 # ============================================================
-# Foreign countries
+# FOREIGN COUNTRIES
 # ============================================================
 
 FOREIGN_COUNTRIES = {
@@ -359,7 +402,7 @@ FOREIGN_COUNTRIES = {
 
 
 # ============================================================
-# Text normalization
+# TEXT NORMALIZATION
 # ============================================================
 
 def normalize_text(text: str) -> str:
@@ -369,12 +412,14 @@ def normalize_text(text: str) -> str:
 
     text = text.lower()
 
+    # Remove Arabic diacritics
     text = re.sub(
         r"[\u0610-\u061A\u064B-\u065F\u0670]",
         "",
         text,
     )
 
+    # Normalize Arabic characters
     replacements = {
         "أ": "ا",
         "إ": "ا",
@@ -384,11 +429,13 @@ def normalize_text(text: str) -> str:
     }
 
     for old, new in replacements.items():
+
         text = text.replace(
             old,
             new,
         )
 
+    # Normalize whitespace
     text = re.sub(
         r"\s+",
         " ",
@@ -399,10 +446,12 @@ def normalize_text(text: str) -> str:
 
 
 # ============================================================
-# Domain
+# GET DOMAIN
 # ============================================================
 
-def get_domain(url: str) -> str:
+def get_domain(
+    url: str,
+) -> str:
 
     if not url:
         return ""
@@ -414,6 +463,7 @@ def get_domain(url: str) -> str:
         ).netloc.lower()
 
         if domain.startswith("www."):
+
             domain = domain[4:]
 
         return domain
@@ -424,7 +474,7 @@ def get_domain(url: str) -> str:
 
 
 # ============================================================
-# Matching helper
+# COUNT MATCHES
 # ============================================================
 
 def contains_any(
@@ -440,14 +490,19 @@ def contains_any(
 
     for term in terms:
 
-        if normalize_text(term) in normalized:
+        normalized_term = normalize_text(
+            term
+        )
+
+        if normalized_term in normalized:
+
             count += 1
 
     return count
 
 
 # ============================================================
-# Trusted Saudi source
+# CHECK TRUSTED SAUDI SOURCE
 # ============================================================
 
 def is_trusted_saudi_source(
@@ -463,9 +518,12 @@ def is_trusted_saudi_source(
         url
     )
 
+    # Any Saudi domain
     if domain.endswith(".sa"):
+
         return True
 
+    # Specific trusted domains
     for trusted_domain in TRUSTED_SAUDI_DOMAINS:
 
         trusted_domain = (
@@ -473,13 +531,16 @@ def is_trusted_saudi_source(
         )
 
         if domain == trusted_domain:
+
             return True
 
         if domain.endswith(
             "." + trusted_domain
         ):
+
             return True
 
+    # Trusted source names
     for trusted_source in TRUSTED_SAUDI_SOURCES:
 
         if normalize_text(
@@ -492,7 +553,7 @@ def is_trusted_saudi_source(
 
 
 # ============================================================
-# Saudi context
+# DETECT SAUDI CONTEXT
 # ============================================================
 
 def detect_saudi_context(
@@ -511,6 +572,7 @@ def detect_saudi_context(
     score = 0
     reasons = []
 
+    # Trusted Saudi source
     if is_trusted_saudi_source(
         source,
         url,
@@ -522,6 +584,7 @@ def detect_saudi_context(
             "Saudi trusted source"
         )
 
+    # Saudi domain
     domain = get_domain(
         url
     )
@@ -530,6 +593,7 @@ def detect_saudi_context(
 
         score += 30
 
+    # Saudi country
     if contains_any(
         text,
         SAUDI_TERMS,
@@ -541,6 +605,7 @@ def detect_saudi_context(
             "Saudi Arabia"
         )
 
+    # Saudi city
     city_count = contains_any(
         text,
         SAUDI_CITIES,
@@ -557,6 +622,7 @@ def detect_saudi_context(
             "Saudi location"
         )
 
+    # Saudi organization
     entity_count = contains_any(
         text,
         SAUDI_ENTITIES,
@@ -573,11 +639,14 @@ def detect_saudi_context(
             "Saudi entity"
         )
 
-    return score, reasons
+    return (
+        score,
+        reasons,
+    )
 
 
 # ============================================================
-# Category detection
+# DETECT CATEGORY
 # ============================================================
 
 def detect_category(
@@ -609,7 +678,11 @@ def detect_category(
 
     if not scores:
 
-        return "", 0, {}
+        return (
+            "",
+            0,
+            {},
+        )
 
     sorted_categories = sorted(
         scores.items(),
@@ -618,6 +691,7 @@ def detect_category(
     )
 
     category = sorted_categories[0][0]
+
     score = sorted_categories[0][1]
 
     return (
@@ -628,7 +702,7 @@ def detect_category(
 
 
 # ============================================================
-# Tender context
+# DETECT TENDER CONTEXT
 # ============================================================
 
 def detect_tender_context(
@@ -653,11 +727,14 @@ def detect_tender_context(
         70,
     )
 
-    return score, count
+    return (
+        score,
+        count,
+    )
 
 
 # ============================================================
-# Excluded categories
+# DETECT EXCLUDED CATEGORIES
 # ============================================================
 
 def detect_excluded_categories(
@@ -676,7 +753,11 @@ def detect_excluded_categories(
 
     for term in EXCLUDED_CATEGORY_TERMS:
 
-        if normalize_text(term) in text:
+        normalized_term = normalize_text(
+            term
+        )
+
+        if normalized_term in text:
 
             found.append(
                 term
@@ -686,7 +767,7 @@ def detect_excluded_categories(
 
 
 # ============================================================
-# Main filter
+# MAIN FILTER
 # ============================================================
 
 def passes_filter(
@@ -701,6 +782,10 @@ def passes_filter(
     url = url or ""
     source = source or ""
 
+    # --------------------------------------------------------
+    # Full text
+    # --------------------------------------------------------
+
     full_text = (
         title
         + " "
@@ -711,17 +796,22 @@ def passes_filter(
         full_text
     )
 
+    normalized_title = normalize_text(
+        title
+    )
+
     # --------------------------------------------------------
     # Saudi context
     # --------------------------------------------------------
 
-    saudi_score, saudi_reasons = (
-        detect_saudi_context(
-            title,
-            description,
-            url,
-            source,
-        )
+    (
+        saudi_score,
+        saudi_reasons,
+    ) = detect_saudi_context(
+        title,
+        description,
+        url,
+        source,
     )
 
     trusted_source = (
@@ -745,6 +835,7 @@ def passes_filter(
         source,
     )
 
+    # No target category
     if not category:
 
         return (
@@ -753,6 +844,7 @@ def passes_filter(
             "Rejected: not one of the 4 target categories",
         )
 
+    # Weak target category
     if category_score < 25:
 
         return (
@@ -765,12 +857,13 @@ def passes_filter(
     # Tender context
     # --------------------------------------------------------
 
-    tender_score, tender_count = (
-        detect_tender_context(
-            title,
-            description,
-            source,
-        )
+    (
+        tender_score,
+        tender_count,
+    ) = detect_tender_context(
+        title,
+        description,
+        source,
     )
 
     if tender_score < 20:
@@ -805,21 +898,20 @@ def passes_filter(
         FOREIGN_COUNTRIES,
     )
 
-    if (
-        foreign_count > 0
-        and not trusted_source
-    ):
+    if foreign_count > 0:
 
-        if not contains_any(
-            normalized_text,
-            SAUDI_TERMS,
-        ):
+        if not trusted_source:
 
-            return (
-                False,
-                0,
-                "Rejected: foreign country opportunity",
-            )
+            if not contains_any(
+                normalized_text,
+                SAUDI_TERMS,
+            ):
+
+                return (
+                    False,
+                    0,
+                    "Rejected: foreign country opportunity",
+                )
 
     # --------------------------------------------------------
     # Excluded categories
@@ -830,24 +922,72 @@ def passes_filter(
         description,
     )
 
-    if excluded:
+    # --------------------------------------------------------
+    # STRICT PHARMACEUTICAL REJECTION
+    # --------------------------------------------------------
+    #
+    # If the TITLE itself contains pharmaceutical terms,
+    # reject the opportunity.
+    #
+    # This means:
+    #
+    # "تأمين بنود أدوية"
+    #                       -> REJECT
+    #
+    # "تأمين بنود أدوية ومستلزمات طبية"
+    #                       -> REJECT
+    #
+    # "تأمين أدوية ومستلزمات مختبرية"
+    #                       -> REJECT
+    #
+    # "Pharmaceutical supplies tender"
+    #                       -> REJECT
+    #
+    # --------------------------------------------------------
 
-        pharmaceutical_terms = {
-            "أدوية",
-            "ادوية",
-            "دواء",
-            "pharmaceutical",
-            "pharmaceuticals",
-            "medicine",
-            "medicines",
-            "drugs",
-        }
+    pharmaceutical_terms = {
+        "أدوية",
+        "ادوية",
+        "دواء",
+        "صيدلية",
+        "صيدليات",
 
-        pharmaceutical_found = any(
-            normalize_text(term)
-            in normalized_text
-            for term in pharmaceutical_terms
+        "pharmaceutical",
+        "pharmaceuticals",
+        "medicine",
+        "medicines",
+        "drugs",
+    }
+
+    pharmaceutical_in_title = any(
+        normalize_text(term)
+        in normalized_title
+        for term in pharmaceutical_terms
+    )
+
+    if pharmaceutical_in_title:
+
+        return (
+            False,
+            0,
+            "Rejected: pharmaceutical opportunity",
         )
+
+    # --------------------------------------------------------
+    # Other excluded categories
+    # --------------------------------------------------------
+
+    non_pharmaceutical_excluded = [
+        term
+        for term in excluded
+        if normalize_text(term)
+        not in {
+            normalize_text(x)
+            for x in pharmaceutical_terms
+        }
+    ]
+
+    if non_pharmaceutical_excluded:
 
         target_score = (
             category_scores.get(
@@ -856,40 +996,18 @@ def passes_filter(
             )
         )
 
-        # Reject pharmaceutical-only tenders
-        if (
-            pharmaceutical_found
-            and target_score < 50
-        ):
+        # Reject if excluded category is not strongly
+        # accompanied by a target category.
+        if target_score < 50:
 
             return (
                 False,
                 target_score,
-                "Rejected: pharmaceutical/medicine opportunity",
+                "Rejected: excluded category",
             )
 
-        # Reject other excluded categories
-        non_pharma_excluded = [
-            term
-            for term in excluded
-            if term not in pharmaceutical_terms
-        ]
-
-        if non_pharma_excluded:
-
-            # If target category is strongly present,
-            # allow it because some tenders can contain
-            # mixed wording.
-            if target_score < 50:
-
-                return (
-                    False,
-                    target_score,
-                    "Rejected: excluded category",
-                )
-
     # --------------------------------------------------------
-    # Final score
+    # FINAL SCORE
     # --------------------------------------------------------
 
     total_score = (
@@ -911,6 +1029,10 @@ def passes_filter(
             total_score,
             f"Rejected: score {total_score} < {minimum_score}",
         )
+
+    # --------------------------------------------------------
+    # ACCEPT
+    # --------------------------------------------------------
 
     reason = (
         f"Accepted | "
