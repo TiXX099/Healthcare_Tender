@@ -13,17 +13,17 @@ from scraper import (
 
 from telegram_bot import (
     send_item,
+    test_telegram,
 )
 
 
 def main():
 
     print("=" * 60)
-    print(
-        "Saudi Healthcare Tender Bot"
-    )
+    print("Saudi Healthcare Tender Bot")
     print("=" * 60)
 
+    # Load history
     history = load_history()
 
     print(
@@ -31,6 +31,28 @@ def main():
         f"{len(history)}"
     )
 
+    # ---------------------------------------------------------
+    # Telegram connection test
+    # ---------------------------------------------------------
+    print()
+    print("Testing Telegram connection...")
+
+    telegram_ok = test_telegram()
+
+    if telegram_ok:
+        print("✅ Telegram connection is working.")
+    else:
+        print("❌ Telegram connection failed.")
+        print(
+            "The bot will continue collecting tenders "
+            "so the Telegram error can be diagnosed."
+        )
+
+    print()
+
+    # ---------------------------------------------------------
+    # Collect tenders
+    # ---------------------------------------------------------
     items = collect_all()
 
     print(
@@ -38,6 +60,9 @@ def main():
         f"{len(items)}"
     )
 
+    # ---------------------------------------------------------
+    # Find new opportunities
+    # ---------------------------------------------------------
     new_items = []
 
     for item in items:
@@ -65,7 +90,9 @@ def main():
         f"{len(new_items)}"
     )
 
+    # ---------------------------------------------------------
     # Highest relevance first
+    # ---------------------------------------------------------
     new_items.sort(
         key=lambda x: x.get(
             "score",
@@ -74,14 +101,17 @@ def main():
         reverse=True,
     )
 
+    # ---------------------------------------------------------
+    # Send new tenders
+    # ---------------------------------------------------------
     sent = 0
 
     for item in new_items:
 
         print(
             f"[NEW] "
-            f"{item['title']} "
-            f"(score={item['score']})"
+            f"{item.get('title', '')} "
+            f"(score={item.get('score', 0)})"
         )
 
         success = send_item(
@@ -89,12 +119,8 @@ def main():
         )
 
         # IMPORTANT:
-        # Save as seen whether sent successfully
-        # or not, to prevent repeated spam.
-        #
-        # If you want retries on Telegram failure,
-        # move add_to_history() inside if success.
-
+        # Keep the original behavior:
+        # save item as seen whether sending succeeds or fails.
         add_to_history(
             history,
             item["hash"],
@@ -104,11 +130,15 @@ def main():
         if success:
             sent += 1
 
+    # ---------------------------------------------------------
+    # Save history
+    # ---------------------------------------------------------
     save_history(
         history,
         MAX_HISTORY_ITEMS,
     )
 
+    print()
     print(
         f"Telegram messages sent: "
         f"{sent}"
@@ -119,6 +149,8 @@ def main():
         f"{len(history)}"
     )
 
+    print("=" * 60)
+    print("Bot run completed.")
     print("=" * 60)
 
 
