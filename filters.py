@@ -3,14 +3,8 @@ from urllib.parse import urlparse
 
 
 # ============================================================
-# Saudi Healthcare Tender Bot
-# Smart Context-Based Filter
+# Trusted Saudi sources
 # ============================================================
-
-
-# ------------------------------------------------------------
-# Trusted Saudi Sources
-# ------------------------------------------------------------
 
 TRUSTED_SAUDI_DOMAINS = {
     "nupco.com",
@@ -20,20 +14,19 @@ TRUSTED_SAUDI_DOMAINS = {
     "portal.etimad.sa",
 }
 
+
 TRUSTED_SAUDI_SOURCES = {
     "nupco",
-    "nupco السعودية",
     "منصة اعتماد",
     "اعتماد",
     "وزارة الصحة",
     "ministry of health",
-    "saudi ministry of health",
 }
 
 
-# ------------------------------------------------------------
-# Saudi Country / Location Indicators
-# ------------------------------------------------------------
+# ============================================================
+# Saudi context
+# ============================================================
 
 SAUDI_TERMS = {
     "السعودية",
@@ -45,14 +38,15 @@ SAUDI_TERMS = {
     "ksa",
 }
 
+
 SAUDI_CITIES = {
     "الرياض",
     "جدة",
     "مكة",
     "مكه",
+    "المدينة",
     "المدينة المنورة",
     "المدينه المنوره",
-    "المدينة",
     "الدمام",
     "الخبر",
     "الظهران",
@@ -67,47 +61,36 @@ SAUDI_CITIES = {
     "القصيم",
     "بريدة",
     "ينبع",
-    "رابغ",
+    "الجبيل",
     "الأحساء",
     "الاحساء",
-    "الجبيل",
-    "عرعر",
     "سكاكا",
+    "عرعر",
     "الباحة",
-    "بيشة",
-    "Saudi",
-    "Riyadh",
-    "Jeddah",
-    "Mecca",
-    "Medina",
-    "Dammam",
-    "Khobar",
-    "Tabuk",
-    "Abha",
-    "Jazan",
-    "Najran",
-    "Hail",
-    "Qassim",
-    "Yanbu",
-    "Jubail",
+
+    "jeddah",
+    "riyadh",
+    "mecca",
+    "medina",
+    "dammam",
+    "khobar",
+    "tabuk",
+    "abha",
+    "jazan",
+    "najran",
+    "hail",
 }
 
-
-# ------------------------------------------------------------
-# Saudi Organizations / Entities
-# ------------------------------------------------------------
 
 SAUDI_ENTITIES = {
     "نوبكو",
     "الشركة الوطنية للشراء الموحد",
-    "الشركة الوطنية للشراء الموحد للادوية والأجهزة والمستلزمات الطبية",
-    "الشركة الوطنية للشراء الموحد للأدوية والأجهزة والمستلزمات الطبية",
     "وزارة الصحة",
     "هيئة الغذاء والدواء",
     "الهيئة العامة للغذاء والدواء",
-    "المركز الوطني للتخصيص",
     "منصة اعتماد",
     "اعتماد",
+
     "تجمع الرياض الصحي",
     "تجمع جدة الصحي",
     "تجمع مكة الصحي",
@@ -117,153 +100,133 @@ SAUDI_ENTITIES = {
     "تجمع عسير الصحي",
     "تجمع جازان الصحي",
     "تجمع تبوك الصحي",
-    "جامعة الملك سعود",
-    "جامعة الملك عبدالعزيز",
-    "جامعة الملك فهد",
-    "جامعة أم القرى",
-    "مستشفى الملك فيصل التخصصي",
-    "مدينة الملك فهد الطبية",
-    "مدينة الملك عبدالله الطبية",
-    "الشؤون الصحية",
+
+    "NUPCO",
     "Saudi Ministry of Health",
     "Ministry of Health Saudi Arabia",
-    "NUPCO",
-    "National Unified Procurement Company",
-    "SFDA",
     "Saudi Food and Drug Authority",
-    "Saudi Health Holding Company",
+    "SFDA",
 }
 
 
-# ------------------------------------------------------------
-# Medical / Laboratory Context
-# ------------------------------------------------------------
+# ============================================================
+# ONLY wanted categories
+# ============================================================
 
-MEDICAL_TERMS = {
-    # Arabic
-    "مستلزمات طبية",
-    "مستلزمات طبيه",
-    "مستلزمات المختبرات",
-    "مستلزمات مختبرية",
-    "مستلزمات مخبرية",
-    "مواد مخبرية",
-    "مواد مختبرية",
-    "أجهزة طبية",
-    "اجهزة طبية",
-    "اجهزة طبيه",
-    "معدات طبية",
-    "معدات طبيه",
-    "أدوية",
-    "ادوية",
-    "دواء",
-    "أدوية ومستلزمات",
-    "محاليل",
-    "محاليل مختبرية",
-    "كواشف",
-    "كواشف مخبرية",
-    "كواشف مختبرية",
-    "تحاليل",
-    "مختبر",
-    "مختبرات",
-    "مختبري",
-    "مختبرية",
-    "تشخيص",
-    "تشخيصية",
-    "مستلزمات تشخيصية",
-    "مواد استهلاكية طبية",
-    "مستهلكات طبية",
-    "مستهلكات مختبرية",
-    "عينات",
-    "أجهزة تشخيصية",
-    "مستلزمات الأسنان",
-    "مستلزمات اسنان",
-    "أشعة",
-    "اشعة",
-    "غسيل الكلى",
-    "بنك الدم",
-    "بنوك الدم",
-    "مستلزمات العمليات",
-    "مستلزمات جراحية",
-    "مستلزمات تمريض",
+CATEGORY_TERMS = {
 
-    # English
-    "medical supplies",
-    "medical equipment",
-    "medical devices",
-    "laboratory supplies",
-    "laboratory equipment",
-    "lab supplies",
-    "lab equipment",
-    "diagnostic",
-    "diagnostics",
-    "reagents",
-    "laboratory reagents",
-    "medical consumables",
-    "healthcare supplies",
-    "healthcare equipment",
-    "pharmaceutical",
-    "pharmaceuticals",
-    "medicine",
-    "medicines",
-    "drugs",
-    "clinical",
-    "laboratory",
-    "lab",
-    "pathology",
-    "blood bank",
-    "radiology",
-    "surgical",
-    "surgical supplies",
-    "dental supplies",
-    "dialysis",
-    "medical devices",
+    "مختبرات": {
+        "مختبر",
+        "مختبرات",
+        "مختبري",
+        "مختبرية",
+        "معمل",
+        "معامل",
+        "تحاليل مخبرية",
+        "مواد مخبرية",
+        "مستلزمات مختبرية",
+        "مستلزمات مخبرات",
+        "كواشف مخبرية",
+        "كواشف مختبرية",
+        "محاليل مختبرية",
+
+        "laboratory",
+        "laboratories",
+        "lab",
+        "labs",
+        "laboratory supplies",
+        "laboratory equipment",
+        "lab supplies",
+        "lab equipment",
+        "laboratory reagents",
+        "reagents",
+    },
+
+
+    "مستلزمات طبية": {
+        "مستلزمات طبية",
+        "مستلزمات طبيه",
+        "مستهلكات طبية",
+        "مستهلكات طبيه",
+        "مواد استهلاكية طبية",
+        "مستلزمات صحية",
+        "مستلزمات المستشفيات",
+        "مستلزمات رعاية صحية",
+
+        "medical supplies",
+        "medical consumables",
+        "healthcare supplies",
+        "hospital supplies",
+    },
+
+
+    "أجهزة ومعدات طبية": {
+        "أجهزة طبية",
+        "اجهزة طبية",
+        "اجهزة طبيه",
+        "معدات طبية",
+        "معدات طبيه",
+        "أجهزة ومعدات طبية",
+        "معدات وأجهزة طبية",
+        "جهاز طبي",
+
+        "medical devices",
+        "medical equipment",
+        "medical device",
+        "healthcare equipment",
+    },
+
+
+    "تشخيص": {
+        "تشخيص",
+        "تشخيصية",
+        "تشخيصي",
+        "مستلزمات تشخيصية",
+        "أجهزة تشخيصية",
+        "معدات تشخيصية",
+        "اختبارات تشخيصية",
+
+        "diagnostic",
+        "diagnostics",
+        "diagnostic equipment",
+        "diagnostic devices",
+        "diagnostic supplies",
+        "diagnostic tests",
+    },
 }
 
 
-# ------------------------------------------------------------
-# Tender / Procurement Context
-# ------------------------------------------------------------
+# ============================================================
+# Tender / procurement context
+# ============================================================
 
 TENDER_TERMS = {
-    # Arabic
     "منافسة",
+    "منافسات",
     "مناقصة",
     "مناقصات",
-    "منافسات",
     "طرح",
-    "طرح المنافسة",
     "توريد",
     "تأمين",
     "تأمين وتوريد",
     "شراء",
     "مشتريات",
-    "شراء موحد",
     "تعاقد",
     "عقد",
     "عقود",
     "ترسية",
-    "ترسية المنافسة",
-    "دعوة للتنافس",
     "دعوة للمنافسة",
+    "دعوة للتنافس",
     "طلب عروض",
     "طلب تقديم عروض",
-    "عرض سعر",
-    "عروض الأسعار",
     "كراسة الشروط",
     "كراسة الشروط والمواصفات",
-    "المنافسات والمشتريات",
-    "الشراء والتوريد",
-    "التوريد",
-    "منافسة عامة",
-    "منافسة محدودة",
 
-    # English
     "tender",
     "tenders",
     "procurement",
     "purchase",
     "purchasing",
-    "sourcing",
     "contract",
     "contracts",
     "bid",
@@ -277,44 +240,74 @@ TENDER_TERMS = {
     "supplies",
     "supplier",
     "suppliers",
-    "award",
-    "contract award",
     "procurement opportunity",
 }
 
 
-# ------------------------------------------------------------
-# Strong Medical Terms
-# ------------------------------------------------------------
+# ============================================================
+# Categories we DO NOT want
+# ============================================================
 
-STRONG_MEDICAL_TERMS = {
-    "مستلزمات طبية",
-    "مستلزمات طبيه",
-    "مستلزمات مختبرية",
-    "مستلزمات مخبرية",
-    "محاليل مختبرية",
-    "كواشف مخبرية",
-    "كواشف مختبرية",
-    "أجهزة طبية",
-    "اجهزة طبية",
-    "أجهزة تشخيصية",
-    "مختبرات",
-    "مختبر",
-    "medical supplies",
-    "medical devices",
-    "medical equipment",
-    "laboratory supplies",
-    "laboratory equipment",
-    "laboratory reagents",
-    "diagnostic equipment",
-    "diagnostic supplies",
-    "medical consumables",
+EXCLUDED_CATEGORY_TERMS = {
+
+    # Pharmaceuticals
+    "أدوية",
+    "ادوية",
+    "دواء",
+    "صيدلية",
+    "صيدليات",
+    "pharmaceutical",
+    "pharmaceuticals",
+    "medicine",
+    "medicines",
+    "drugs",
+
+    # Dental
+    "أسنان",
+    "اسنان",
+    "dental",
+
+    # Nursing
+    "تمريض",
+    "nursing",
+
+    # Nutrition / food
+    "تغذية",
+    "nutrition",
+    "غذاء",
+    "food",
+
+    # General services
+    "خدمات طبية",
+    "medical services",
+
+    # Jobs
+    "وظائف",
+    "وظيفة",
+    "job",
+    "jobs",
+
+    # Events
+    "مؤتمر",
+    "مؤتمرات",
+    "conference",
+    "conferences",
+    "ندوة",
+    "ندوات",
+    "webinar",
+    "webinars",
+
+    # Other irrelevant content
+    "رياضة",
+    "sports",
+    "سياحة",
+    "tourism",
 }
 
 
-# ------------------------------------------------------------
-# Explicit Foreign Countries
-# ------------------------------------------------------------
+# ============================================================
+# Foreign countries
+# ============================================================
 
 FOREIGN_COUNTRIES = {
     "العراق",
@@ -336,22 +329,15 @@ FOREIGN_COUNTRIES = {
     "اليمن",
     "السودان",
     "سوريا",
-    "سوريا",
     "تركيا",
     "إيران",
     "ايران",
     "باكستان",
     "الهند",
-    "بنغلاديش",
-    "أمريكا",
-    "الولايات المتحدة",
-    "بريطانيا",
-    "المملكة المتحدة",
 
-    "iraq",
     "egypt",
+    "iraq",
     "uae",
-    "united arab emirates",
     "kuwait",
     "qatar",
     "bahrain",
@@ -362,7 +348,6 @@ FOREIGN_COUNTRIES = {
     "algeria",
     "tunisia",
     "libya",
-    "palestine",
     "yemen",
     "sudan",
     "syria",
@@ -370,73 +355,12 @@ FOREIGN_COUNTRIES = {
     "iran",
     "pakistan",
     "india",
-    "bangladesh",
-    "usa",
-    "united states",
-    "uk",
-    "united kingdom",
 }
 
 
-# ------------------------------------------------------------
-# Irrelevant Content
-# ------------------------------------------------------------
-
-EXCLUDED_KEYWORDS = {
-    "وظيفة",
-    "وظائف",
-    "توظيف",
-    "توظيفي",
-    "job",
-    "jobs",
-    "career",
-    "careers",
-    "employment",
-
-    "مؤتمر",
-    "مؤتمرات",
-    "conference",
-    "conferences",
-
-    "ندوة",
-    "ندوات",
-    "webinar",
-    "webinars",
-
-    "ورشة عمل",
-    "workshop",
-    "workshops",
-
-    "طقس",
-    "weather",
-
-    "رياضة",
-    "sports",
-    "football",
-    "soccer",
-
-    "أسهم",
-    "اسهم",
-    "stock",
-    "stocks",
-
-    "سياحة",
-    "tourism",
-    "travel",
-
-    "وفاة",
-    "وفاة",
-    "death",
-
-    "تهنئة",
-    "مهرجان",
-    "festival",
-}
-
-
-# ------------------------------------------------------------
-# Normalization
-# ------------------------------------------------------------
+# ============================================================
+# Text normalization
+# ============================================================
 
 def normalize_text(text: str) -> str:
 
@@ -445,14 +369,12 @@ def normalize_text(text: str) -> str:
 
     text = text.lower()
 
-    # Remove Arabic diacritics
     text = re.sub(
         r"[\u0610-\u061A\u064B-\u065F\u0670]",
         "",
         text,
     )
 
-    # Arabic normalization
     replacements = {
         "أ": "ا",
         "إ": "ا",
@@ -462,17 +384,23 @@ def normalize_text(text: str) -> str:
     }
 
     for old, new in replacements.items():
-        text = text.replace(old, new)
+        text = text.replace(
+            old,
+            new,
+        )
 
-    # Normalize whitespace
-    text = re.sub(r"\s+", " ", text)
+    text = re.sub(
+        r"\s+",
+        " ",
+        text,
+    )
 
     return text.strip()
 
 
-# ------------------------------------------------------------
-# Domain Detection
-# ------------------------------------------------------------
+# ============================================================
+# Domain
+# ============================================================
 
 def get_domain(url: str) -> str:
 
@@ -480,8 +408,10 @@ def get_domain(url: str) -> str:
         return ""
 
     try:
-        parsed = urlparse(url)
-        domain = parsed.netloc.lower()
+
+        domain = urlparse(
+            url
+        ).netloc.lower()
 
         if domain.startswith("www."):
             domain = domain[4:]
@@ -489,51 +419,22 @@ def get_domain(url: str) -> str:
         return domain
 
     except Exception:
+
         return ""
 
 
-def is_trusted_saudi_source(
-    source: str = "",
-    url: str = "",
-) -> bool:
-
-    source_normalized = normalize_text(source)
-    domain = get_domain(url)
-
-    # Trusted domain
-    for trusted_domain in TRUSTED_SAUDI_DOMAINS:
-
-        trusted_domain = trusted_domain.lower()
-
-        if domain == trusted_domain:
-            return True
-
-        if domain.endswith("." + trusted_domain):
-            return True
-
-    # Saudi domain
-    if domain.endswith(".sa"):
-        return True
-
-    # Trusted source name
-    for trusted_source in TRUSTED_SAUDI_SOURCES:
-
-        if normalize_text(trusted_source) in source_normalized:
-            return True
-
-    return False
-
-
-# ------------------------------------------------------------
-# Context Detection
-# ------------------------------------------------------------
+# ============================================================
+# Matching helper
+# ============================================================
 
 def contains_any(
     text: str,
     terms: set,
 ) -> int:
 
-    normalized = normalize_text(text)
+    normalized = normalize_text(
+        text
+    )
 
     count = 0
 
@@ -545,53 +446,107 @@ def contains_any(
     return count
 
 
-def detect_saudi_context(
-    title: str,
-    description: str,
-    url: str,
-    source: str,
-) -> tuple[int, list[str]]:
+# ============================================================
+# Trusted Saudi source
+# ============================================================
 
-    text = " ".join(
-        [
-            title or "",
-            description or "",
-            source or "",
-        ]
+def is_trusted_saudi_source(
+    source: str = "",
+    url: str = "",
+) -> bool:
+
+    source_text = normalize_text(
+        source
     )
 
-    normalized = normalize_text(text)
+    domain = get_domain(
+        url
+    )
+
+    if domain.endswith(".sa"):
+        return True
+
+    for trusted_domain in TRUSTED_SAUDI_DOMAINS:
+
+        trusted_domain = (
+            trusted_domain.lower()
+        )
+
+        if domain == trusted_domain:
+            return True
+
+        if domain.endswith(
+            "." + trusted_domain
+        ):
+            return True
+
+    for trusted_source in TRUSTED_SAUDI_SOURCES:
+
+        if normalize_text(
+            trusted_source
+        ) in source_text:
+
+            return True
+
+    return False
+
+
+# ============================================================
+# Saudi context
+# ============================================================
+
+def detect_saudi_context(
+    title,
+    description,
+    url,
+    source,
+):
+
+    text = " ".join([
+        title,
+        description,
+        source,
+    ])
 
     score = 0
     reasons = []
 
-    domain = get_domain(url)
-
-    # Strongest signal: trusted Saudi source
-    if is_trusted_saudi_source(source, url):
+    if is_trusted_saudi_source(
+        source,
+        url,
+    ):
 
         score += 70
-        reasons.append("trusted Saudi source")
 
-    # .sa domain
+        reasons.append(
+            "Saudi trusted source"
+        )
+
+    domain = get_domain(
+        url
+    )
+
     if domain.endswith(".sa"):
 
-        score += 35
-        reasons.append("Saudi .sa domain")
+        score += 30
 
-    # Saudi country explicitly mentioned
-    if contains_any(normalized, SAUDI_TERMS) > 0:
+    if contains_any(
+        text,
+        SAUDI_TERMS,
+    ):
 
-        score += 45
-        reasons.append("Saudi Arabia context")
+        score += 40
 
-    # Saudi city
+        reasons.append(
+            "Saudi Arabia"
+        )
+
     city_count = contains_any(
-        normalized,
+        text,
         SAUDI_CITIES,
     )
 
-    if city_count > 0:
+    if city_count:
 
         score += min(
             city_count * 15,
@@ -599,16 +554,15 @@ def detect_saudi_context(
         )
 
         reasons.append(
-            f"Saudi location ({city_count})"
+            "Saudi location"
         )
 
-    # Saudi organization
     entity_count = contains_any(
-        normalized,
+        text,
         SAUDI_ENTITIES,
     )
 
-    if entity_count > 0:
+    if entity_count:
 
         score += min(
             entity_count * 25,
@@ -616,419 +570,352 @@ def detect_saudi_context(
         )
 
         reasons.append(
-            f"Saudi entity ({entity_count})"
+            "Saudi entity"
         )
 
     return score, reasons
 
 
-# ------------------------------------------------------------
-# Medical Context
-# ------------------------------------------------------------
+# ============================================================
+# Category detection
+# ============================================================
 
-def detect_medical_context(
-    title: str,
-    description: str,
-    source: str,
-) -> tuple[int, list[str]]:
+def detect_category(
+    title,
+    description,
+    source,
+):
 
-    text = " ".join(
-        [
-            title or "",
-            description or "",
-            source or "",
-        ]
+    text = " ".join([
+        title,
+        description,
+        source,
+    ])
+
+    scores = {}
+
+    for category, terms in CATEGORY_TERMS.items():
+
+        count = contains_any(
+            text,
+            terms,
+        )
+
+        if count:
+
+            scores[category] = (
+                count * 25
+            )
+
+    if not scores:
+
+        return "", 0, {}
+
+    sorted_categories = sorted(
+        scores.items(),
+        key=lambda x: x[1],
+        reverse=True,
     )
 
-    normalized = normalize_text(text)
+    category = sorted_categories[0][0]
+    score = sorted_categories[0][1]
 
-    medical_count = contains_any(
-        normalized,
-        MEDICAL_TERMS,
+    return (
+        category,
+        score,
+        scores,
     )
 
-    strong_count = contains_any(
-        normalized,
-        STRONG_MEDICAL_TERMS,
-    )
 
-    score = 0
-    reasons = []
-
-    if medical_count > 0:
-
-        score += min(
-            medical_count * 18,
-            60,
-        )
-
-        reasons.append(
-            f"medical context ({medical_count})"
-        )
-
-    if strong_count > 0:
-
-        score += min(
-            strong_count * 25,
-            60,
-        )
-
-        reasons.append(
-            f"strong medical context ({strong_count})"
-        )
-
-    return score, reasons
-
-
-# ------------------------------------------------------------
-# Tender Context
-# ------------------------------------------------------------
+# ============================================================
+# Tender context
+# ============================================================
 
 def detect_tender_context(
-    title: str,
-    description: str,
-    source: str,
-) -> tuple[int, list[str]]:
+    title,
+    description,
+    source,
+):
 
-    text = " ".join(
-        [
-            title or "",
-            description or "",
-            source or "",
-        ]
-    )
+    text = " ".join([
+        title,
+        description,
+        source,
+    ])
 
-    normalized = normalize_text(text)
-
-    tender_count = contains_any(
-        normalized,
+    count = contains_any(
+        text,
         TENDER_TERMS,
     )
 
-    score = 0
-    reasons = []
+    score = min(
+        count * 20,
+        70,
+    )
 
-    if tender_count > 0:
-
-        score += min(
-            tender_count * 20,
-            70,
-        )
-
-        reasons.append(
-            f"procurement context ({tender_count})"
-        )
-
-    return score, reasons
+    return score, count
 
 
-# ------------------------------------------------------------
-# Foreign Context
-# ------------------------------------------------------------
+# ============================================================
+# Excluded categories
+# ============================================================
 
-def detect_foreign_context(
-    title: str,
-    description: str,
-) -> tuple[int, list[str]]:
+def detect_excluded_categories(
+    title,
+    description,
+):
 
     text = normalize_text(
-        " ".join(
-            [
-                title or "",
-                description or "",
-            ]
-        )
+        " ".join([
+            title,
+            description,
+        ])
     )
 
     found = []
 
-    for country in FOREIGN_COUNTRIES:
+    for term in EXCLUDED_CATEGORY_TERMS:
 
-        if normalize_text(country) in text:
-            found.append(country)
+        if normalize_text(term) in text:
 
-    return len(found), found
-
-
-# ------------------------------------------------------------
-# Excluded Content
-# ------------------------------------------------------------
-
-def detect_excluded_content(
-    title: str,
-    description: str,
-) -> list[str]:
-
-    text = normalize_text(
-        " ".join(
-            [
-                title or "",
-                description or "",
-            ]
-        )
-    )
-
-    found = []
-
-    for keyword in EXCLUDED_KEYWORDS:
-
-        if normalize_text(keyword) in text:
-            found.append(keyword)
+            found.append(
+                term
+            )
 
     return found
 
 
-# ------------------------------------------------------------
-# Opportunity Score
-# ------------------------------------------------------------
-
-def score_opportunity(
-    title: str,
-    description: str,
-    url: str,
-    source: str,
-) -> tuple[int, list[str]]:
-
-    saudi_score, saudi_reasons = detect_saudi_context(
-        title,
-        description,
-        url,
-        source,
-    )
-
-    medical_score, medical_reasons = detect_medical_context(
-        title,
-        description,
-        source,
-    )
-
-    tender_score, tender_reasons = detect_tender_context(
-        title,
-        description,
-        source,
-    )
-
-    foreign_count, foreign_countries = detect_foreign_context(
-        title,
-        description,
-    )
-
-    excluded = detect_excluded_content(
-        title,
-        description,
-    )
-
-    total_score = (
-        saudi_score
-        + medical_score
-        + tender_score
-    )
-
-    reasons = (
-        saudi_reasons
-        + medical_reasons
-        + tender_reasons
-    )
-
-    # Foreign-country penalty is contextual,
-    # not an automatic rejection.
-    if foreign_count > 0:
-
-        total_score -= min(
-            foreign_count * 20,
-            50,
-        )
-
-        reasons.append(
-            "foreign country mentioned: "
-            + ", ".join(
-                foreign_countries[:4]
-            )
-        )
-
-    # Excluded content penalty
-    if excluded:
-
-        total_score -= min(
-            len(excluded) * 50,
-            100,
-        )
-
-        reasons.append(
-            "excluded content: "
-            + ", ".join(
-                excluded[:4]
-            )
-        )
-
-    return total_score, reasons
-
-
-# ------------------------------------------------------------
-# Main Filter
-# ------------------------------------------------------------
+# ============================================================
+# Main filter
+# ============================================================
 
 def passes_filter(
-    title: str,
-    description: str,
-    url: str,
-    source: str,
-) -> tuple[bool, int, str]:
+    title,
+    description,
+    url,
+    source,
+):
 
     title = title or ""
     description = description or ""
     url = url or ""
     source = source or ""
 
-    saudi_score, saudi_reasons = detect_saudi_context(
-        title,
-        description,
-        url,
-        source,
+    full_text = (
+        title
+        + " "
+        + description
     )
 
-    medical_score, medical_reasons = detect_medical_context(
-        title,
-        description,
-        source,
-    )
-
-    tender_score, tender_reasons = detect_tender_context(
-        title,
-        description,
-        source,
-    )
-
-    foreign_count, foreign_countries = detect_foreign_context(
-        title,
-        description,
-    )
-
-    excluded = detect_excluded_content(
-        title,
-        description,
-    )
-
-    total_score = (
-        saudi_score
-        + medical_score
-        + tender_score
+    normalized_text = normalize_text(
+        full_text
     )
 
     # --------------------------------------------------------
-    # Trusted Saudi source
+    # Saudi context
     # --------------------------------------------------------
 
-    trusted_source = is_trusted_saudi_source(
+    saudi_score, saudi_reasons = (
+        detect_saudi_context(
+            title,
+            description,
+            url,
+            source,
+        )
+    )
+
+    trusted_source = (
+        is_trusted_saudi_source(
+            source,
+            url,
+        )
+    )
+
+    # --------------------------------------------------------
+    # Category
+    # --------------------------------------------------------
+
+    (
+        category,
+        category_score,
+        category_scores,
+    ) = detect_category(
+        title,
+        description,
         source,
-        url,
     )
 
-    # --------------------------------------------------------
-    # Hard reject obvious irrelevant content
-    # --------------------------------------------------------
-
-    # Only reject excluded content when it dominates
-    # the title/description.
-    title_normalized = normalize_text(title)
-
-    strong_excluded = any(
-        normalize_text(keyword) in title_normalized
-        for keyword in EXCLUDED_KEYWORDS
-    )
-
-    if strong_excluded and medical_score < 35:
+    if not category:
 
         return (
             False,
-            total_score,
-            "Rejected: irrelevant content",
+            0,
+            "Rejected: not one of the 4 target categories",
         )
 
-    # --------------------------------------------------------
-    # Medical requirement
-    # --------------------------------------------------------
-
-    if medical_score < 25:
+    if category_score < 25:
 
         return (
             False,
-            total_score,
-            "Rejected: not sufficiently medical",
+            category_score,
+            "Rejected: weak target-category context",
         )
 
     # --------------------------------------------------------
-    # Tender requirement
+    # Tender context
     # --------------------------------------------------------
+
+    tender_score, tender_count = (
+        detect_tender_context(
+            title,
+            description,
+            source,
+        )
+    )
 
     if tender_score < 20:
 
         return (
             False,
-            total_score,
-            "Rejected: not a procurement/tender opportunity",
+            category_score,
+            "Rejected: not a tender/procurement opportunity",
         )
 
     # --------------------------------------------------------
     # Saudi requirement
     # --------------------------------------------------------
 
-    if not trusted_source and saudi_score < 35:
-
-        return (
-            False,
-            total_score,
-            "Rejected: Saudi context not strong enough",
-        )
-
-    # --------------------------------------------------------
-    # Foreign-country logic
-    # --------------------------------------------------------
-
-    # If foreign countries appear but Saudi context is
-    # significantly stronger, keep the opportunity.
     if (
-        foreign_count >= 2
-        and not trusted_source
-        and saudi_score < 50
+        not trusted_source
+        and saudi_score < 35
     ):
 
         return (
             False,
-            total_score,
-            "Rejected: foreign-country context dominates",
+            category_score,
+            "Rejected: Saudi context not strong enough",
         )
+
+    # --------------------------------------------------------
+    # Foreign country protection
+    # --------------------------------------------------------
+
+    foreign_count = contains_any(
+        normalized_text,
+        FOREIGN_COUNTRIES,
+    )
+
+    if (
+        foreign_count > 0
+        and not trusted_source
+    ):
+
+        if not contains_any(
+            normalized_text,
+            SAUDI_TERMS,
+        ):
+
+            return (
+                False,
+                0,
+                "Rejected: foreign country opportunity",
+            )
+
+    # --------------------------------------------------------
+    # Excluded categories
+    # --------------------------------------------------------
+
+    excluded = detect_excluded_categories(
+        title,
+        description,
+    )
+
+    if excluded:
+
+        pharmaceutical_terms = {
+            "أدوية",
+            "ادوية",
+            "دواء",
+            "pharmaceutical",
+            "pharmaceuticals",
+            "medicine",
+            "medicines",
+            "drugs",
+        }
+
+        pharmaceutical_found = any(
+            normalize_text(term)
+            in normalized_text
+            for term in pharmaceutical_terms
+        )
+
+        target_score = (
+            category_scores.get(
+                category,
+                0,
+            )
+        )
+
+        # Reject pharmaceutical-only tenders
+        if (
+            pharmaceutical_found
+            and target_score < 50
+        ):
+
+            return (
+                False,
+                target_score,
+                "Rejected: pharmaceutical/medicine opportunity",
+            )
+
+        # Reject other excluded categories
+        non_pharma_excluded = [
+            term
+            for term in excluded
+            if term not in pharmaceutical_terms
+        ]
+
+        if non_pharma_excluded:
+
+            # If target category is strongly present,
+            # allow it because some tenders can contain
+            # mixed wording.
+            if target_score < 50:
+
+                return (
+                    False,
+                    target_score,
+                    "Rejected: excluded category",
+                )
 
     # --------------------------------------------------------
     # Final score
     # --------------------------------------------------------
 
-    minimum_score = 70
+    total_score = (
+        saudi_score
+        + category_score
+        + tender_score
+    )
 
-    if trusted_source:
-        minimum_score = 50
+    minimum_score = (
+        50
+        if trusted_source
+        else 70
+    )
 
     if total_score < minimum_score:
 
         return (
             False,
             total_score,
-            f"Rejected: confidence score {total_score} < {minimum_score}",
+            f"Rejected: score {total_score} < {minimum_score}",
         )
 
-    # --------------------------------------------------------
-    # Accepted
-    # --------------------------------------------------------
-
-    all_reasons = (
-        saudi_reasons
-        + medical_reasons
-        + tender_reasons
-    )
-
     reason = (
-        f"Accepted | score={total_score} | "
-        + " | ".join(all_reasons[:8])
+        f"Accepted | "
+        f"category={category} | "
+        f"score={total_score}"
     )
 
     return (
