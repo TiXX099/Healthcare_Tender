@@ -11,7 +11,6 @@ from scraper import collect_all
 
 from telegram_bot import (
     send_item,
-    test_telegram,
 )
 
 
@@ -21,59 +20,24 @@ def main():
     print("Saudi Healthcare Tender Bot")
     print("=" * 60)
 
-    # --------------------------------------------------------
-    # Load history
-    # --------------------------------------------------------
-
     history = load_history()
 
     print(
         f"History records: {len(history)}"
     )
 
-    # --------------------------------------------------------
-    # Test Telegram
-    # --------------------------------------------------------
-
-    print()
-    print("Testing Telegram connection...")
-
-    telegram_ok = test_telegram()
-
-    if telegram_ok:
-
-        print(
-            "✅ Telegram connection is working."
-        )
-
-    else:
-
-        print(
-            "❌ Telegram connection failed."
-        )
-
-        print(
-            "The bot will continue collecting tenders."
-        )
-
-    # --------------------------------------------------------
-    # Collect opportunities
-    # --------------------------------------------------------
-
     print()
 
+    # Collect tenders
     items = collect_all()
 
     print(
         f"Collected unique items: {len(items)}"
     )
 
-    # --------------------------------------------------------
-    # Remove duplicates
-    # --------------------------------------------------------
-
     new_items = []
 
+    # Remove previously sent items
     for item in items:
 
         item_hash = item["hash"]
@@ -96,21 +60,15 @@ def main():
         f"New opportunities: {len(new_items)}"
     )
 
-    # --------------------------------------------------------
-    # Sort by smart score
-    # --------------------------------------------------------
-
+    # Highest score first
     new_items.sort(
         key=lambda x: x.get("score", 0),
         reverse=True,
     )
 
-    # --------------------------------------------------------
-    # Send to Telegram
-    # --------------------------------------------------------
-
     sent = 0
 
+    # Send new opportunities
     for item in new_items:
 
         print(
@@ -120,21 +78,22 @@ def main():
         )
 
         print(
+            f"[CATEGORY] "
+            f"{item.get('category', '')}"
+        )
+
+        print(
             f"[REASON] "
             f"{item.get('filter_reason', '')}"
         )
 
         success = send_item(item)
 
-        # IMPORTANT:
-        # Save to history ONLY if Telegram succeeded.
-        # This allows failed messages to be retried
-        # on the next GitHub Actions run.
-
         if success:
 
             sent += 1
 
+            # Save ONLY after successful Telegram delivery
             add_to_history(
                 history,
                 item["hash"],
@@ -148,18 +107,11 @@ def main():
                 f"{item.get('title', '')}"
             )
 
-    # --------------------------------------------------------
     # Save history
-    # --------------------------------------------------------
-
     save_history(
         history,
         MAX_HISTORY_ITEMS,
     )
-
-    # --------------------------------------------------------
-    # Final report
-    # --------------------------------------------------------
 
     print()
 
