@@ -6,90 +6,174 @@ from config import (
 )
 
 
-def escape_markdown(text: str) -> str:
-    """
-    Escape all Telegram MarkdownV2 reserved characters.
-    """
+# ============================================================
+# MarkdownV2 escaping
+# ============================================================
+
+def escape_markdown(
+    text: str,
+) -> str:
+
     if not text:
+
         return ""
 
-    characters = r"_*[]()~`>#+-=|{}.!"
+    characters = (
+        r"_*[]()~`>#+-=|{}.!"
+    )
 
     for char in characters:
+
         text = text.replace(
             char,
-            "\\" + char
+            "\\" + char,
         )
 
     return text
 
 
-def build_message(item: dict) -> str:
+# ============================================================
+# Category labels
+# ============================================================
+
+def get_category_label(
+    category: str,
+) -> str:
+
+    categories = {
+
+        "مختبرات":
+            "🧪 مختبرات",
+
+        "مستلزمات طبية":
+            "🩺 مستلزمات طبية",
+
+        "أجهزة ومعدات طبية":
+            "⚙️ أجهزة ومعدات طبية",
+
+        "تشخيص":
+            "🔬 تشخيص",
+    }
+
+    return categories.get(
+        category,
+        "🏥 طبي",
+    )
+
+
+# ============================================================
+# Build Telegram message
+# ============================================================
+
+def build_message(
+    item: dict,
+) -> str:
 
     title = escape_markdown(
-        item.get("title", "")
+        item.get(
+            "title",
+            "",
+        )
     )
 
     source = escape_markdown(
-        item.get("source", "")
+        item.get(
+            "source",
+            "",
+        )
     )
 
     tender_id = escape_markdown(
-        item.get("tender_id", "")
+        item.get(
+            "tender_id",
+            "",
+        )
+    )
+
+    category = get_category_label(
+        item.get(
+            "category",
+            "",
+        )
     )
 
     url = item.get(
         "url",
-        ""
+        "",
     )
 
     message = (
         "🚨 *فرصة مناقصة طبية جديدة*\n\n"
-        f"📌 *العنوان:*\n{title}\n\n"
+
+        "📌 *العنوان:*\n"
+        f"{title}\n\n"
     )
 
     if tender_id:
+
         message += (
-            f"🆔 *رقم المنافسة:*\n"
+            "🆔 *رقم المنافسة:*\n"
             f"`{tender_id}`\n\n"
         )
 
     message += (
-        f"🏢 *المصدر:* {source}\n\n"
+        f"🏢 *المصدر:* "
+        f"{source}\n\n"
+
         "🇸🇦 *النطاق:* السعودية\n"
-        "🏥 *التصنيف:* طبي / مخبري\n\n"
+
+        f"🏥 *التصنيف:* "
+        f"{category}\n\n"
+
         f"🔗 [فتح المصدر]({url})"
     )
 
     return message
 
 
+# ============================================================
+# Send Telegram message
+# ============================================================
+
 def send_telegram_message(
-    message: str
+    message: str,
 ) -> bool:
 
     if not TELEGRAM_BOT_TOKEN:
+
         print(
             "❌ Telegram token is missing."
         )
+
         return False
 
     if not TELEGRAM_CHAT_ID:
+
         print(
             "❌ Telegram chat ID is missing."
         )
+
         return False
 
     telegram_url = (
         "https://api.telegram.org/bot"
-        f"{TELEGRAM_BOT_TOKEN}/sendMessage"
+        f"{TELEGRAM_BOT_TOKEN}"
+        "/sendMessage"
     )
 
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "MarkdownV2",
-        "disable_web_page_preview": False,
+
+        "chat_id":
+            TELEGRAM_CHAT_ID,
+
+        "text":
+            message,
+
+        "parse_mode":
+            "MarkdownV2",
+
+        "disable_web_page_preview":
+            False,
     }
 
     try:
@@ -97,15 +181,16 @@ def send_telegram_message(
         response = requests.post(
             telegram_url,
             json=payload,
-            timeout=30
+            timeout=30,
         )
 
         print(
-            f"Telegram HTTP status: "
+            "Telegram HTTP status: "
             f"{response.status_code}"
         )
 
         try:
+
             data = response.json()
 
         except Exception:
@@ -121,7 +206,7 @@ def send_telegram_message(
             return False
 
         print(
-            f"Telegram response: "
+            "Telegram response: "
             f"{data}"
         )
 
@@ -156,7 +241,13 @@ def send_telegram_message(
         return False
 
 
-def send_item(item: dict) -> bool:
+# ============================================================
+# Send tender item
+# ============================================================
+
+def send_item(
+    item: dict,
+) -> bool:
 
     message = build_message(
         item
@@ -167,14 +258,24 @@ def send_item(item: dict) -> bool:
     )
 
 
+# ============================================================
+# Manual Telegram test
+# ============================================================
+
 def test_telegram() -> bool:
 
-    print("=" * 60)
-    print("Testing Telegram connection...")
-    print("=" * 60)
+    print(
+        "=" * 60
+    )
 
-    # Every MarkdownV2 reserved character
-    # is escaped before sending.
+    print(
+        "Testing Telegram connection..."
+    )
+
+    print(
+        "=" * 60
+    )
+
     test_message = (
         "✅ *Saudi Healthcare Tender Bot*\n\n"
         "Telegram connection test successful\\.\n"
@@ -185,7 +286,9 @@ def test_telegram() -> bool:
         test_message
     )
 
-    print("=" * 60)
+    print(
+        "=" * 60
+    )
 
     if result:
 
@@ -199,6 +302,8 @@ def test_telegram() -> bool:
             "❌ TELEGRAM TEST FAILED"
         )
 
-    print("=" * 60)
+    print(
+        "=" * 60
+    )
 
     return result
