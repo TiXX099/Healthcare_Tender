@@ -12,13 +12,20 @@ from config import (
     NUPCO_TENDERS_URL,
     REQUEST_TIMEOUT,
 )
+
 from filters import (
     passes_filter,
+    detect_category,
 )
+
 from deduplication import (
     create_hash,
 )
 
+
+# ============================================================
+# HTTP headers
+# ============================================================
 
 HEADERS = {
     "User-Agent": (
@@ -28,16 +35,24 @@ HEADERS = {
         "(KHTML, like Gecko) "
         "Chrome/131.0 Safari/537.36"
     ),
-    "Accept-Language": "ar-SA,ar;q=0.9,en;q=0.8",
+    "Accept-Language": (
+        "ar-SA,ar;q=0.9,en;q=0.8"
+    ),
 }
 
+
+# ============================================================
+# Clean text
+# ============================================================
 
 def clean_text(text: str) -> str:
 
     if not text:
         return ""
 
-    text = html.unescape(text)
+    text = html.unescape(
+        text
+    )
 
     soup = BeautifulSoup(
         text,
@@ -58,7 +73,13 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def extract_tender_id(text: str) -> str:
+# ============================================================
+# Extract tender ID
+# ============================================================
+
+def extract_tender_id(
+    text: str,
+) -> str:
 
     match = re.search(
         r"\b((?:NPT|NDP)\d{3,6}/\d{2})\b",
@@ -67,14 +88,25 @@ def extract_tender_id(text: str) -> str:
     )
 
     if match:
-        return match.group(1).upper()
+
+        return match.group(
+            1
+        ).upper()
 
     return ""
 
 
-def google_news_url(query: str) -> str:
+# ============================================================
+# Google News RSS URL
+# ============================================================
 
-    encoded = quote(query)
+def google_news_url(
+    query: str,
+) -> str:
+
+    encoded = quote(
+        query
+    )
 
     return (
         "https://news.google.com/rss/search?"
@@ -84,6 +116,10 @@ def google_news_url(query: str) -> str:
         "&ceid=SA:ar"
     )
 
+
+# ============================================================
+# Google News
+# ============================================================
 
 def fetch_google_news():
 
@@ -100,11 +136,17 @@ def fetch_google_news():
             for entry in feed.entries:
 
                 title = clean_text(
-                    entry.get("title", "")
+                    entry.get(
+                        "title",
+                        "",
+                    )
                 )
 
                 description = clean_text(
-                    entry.get("summary", "")
+                    entry.get(
+                        "summary",
+                        "",
+                    )
                 )
 
                 url = entry.get(
@@ -114,7 +156,11 @@ def fetch_google_news():
 
                 source_name = ""
 
-                if hasattr(entry, "source"):
+                if hasattr(
+                    entry,
+                    "source",
+                ):
+
                     source_name = clean_text(
                         entry.source.get(
                             "title",
@@ -126,6 +172,10 @@ def fetch_google_news():
                     "published",
                     "",
                 )
+
+                # --------------------------------------------
+                # Filter
+                # --------------------------------------------
 
                 accepted, score, reason = (
                     passes_filter(
@@ -139,9 +189,27 @@ def fetch_google_news():
                 if not accepted:
                     continue
 
+                # --------------------------------------------
+                # Category
+                # --------------------------------------------
+
+                category = detect_category(
+                    title,
+                    description,
+                    source_name,
+                )[0]
+
+                # --------------------------------------------
+                # Tender ID
+                # --------------------------------------------
+
                 tender_id = extract_tender_id(
                     f"{title} {description}"
                 )
+
+                # --------------------------------------------
+                # Hash
+                # --------------------------------------------
 
                 item_hash = create_hash(
                     title=title,
@@ -149,30 +217,55 @@ def fetch_google_news():
                     tender_id=tender_id,
                 )
 
+                # --------------------------------------------
+                # Item
+                # --------------------------------------------
+
                 results.append({
+
                     "title": title,
+
                     "description": description,
+
                     "url": url,
-                    "source": source_name or "Google News",
+
+                    "source": (
+                        source_name
+                        or "Google News"
+                    ),
+
                     "published": published,
+
                     "tender_id": tender_id,
+
+                    "category": category,
+
                     "score": score,
+
                     "filter_reason": reason,
+
                     "hash": item_hash,
-                    "collected_at": datetime.now(
-                        timezone.utc
-                    ).isoformat(),
+
+                    "collected_at": (
+                        datetime.now(
+                            timezone.utc
+                        ).isoformat()
+                    ),
                 })
 
         except Exception as e:
 
             print(
-                f"[Google News] "
+                "[Google News] "
                 f"Query failed: {query} -> {e}"
             )
 
     return results
 
+
+# ============================================================
+# NUPCO
+# ============================================================
 
 def fetch_nupco():
 
@@ -193,7 +286,6 @@ def fetch_nupco():
             "html.parser",
         )
 
-        # Find links containing /tender/
         links = soup.find_all(
             "a",
             href=True,
@@ -203,9 +295,13 @@ def fetch_nupco():
 
         for link in links:
 
-            href = link.get("href", "").strip()
+            href = link.get(
+                "href",
+                "",
+            ).strip()
 
             if "/tender/" not in href:
+
                 continue
 
             url = urljoin(
@@ -214,9 +310,12 @@ def fetch_nupco():
             )
 
             if url in seen_urls:
+
                 continue
 
-            seen_urls.add(url)
+            seen_urls.add(
+                url
+            )
 
             title = clean_text(
                 link.get_text(
@@ -226,31 +325,50 @@ def fetch_nupco():
             )
 
             if not title:
+
                 continue
 
-            # Get surrounding card text
+            # --------------------------------------------
+            # Get surrounding tender information
+            # --------------------------------------------
+
             parent = link
+            card_text = title
 
             for _ in range(4):
 
                 if parent.parent:
-                    parent = parent.parent
 
-                card_text = clean_text(
+                    parent = (
+                        parent.parent
+                    )
+
+                current_text = clean_text(
                     parent.get_text(
                         " ",
                         strip=True,
                     )
                 )
 
-                if len(card_text) > len(title):
+                if len(current_text) > len(title):
+
+                    card_text = current_text
+
                     break
 
             description = card_text
 
+            # --------------------------------------------
+            # Tender ID
+            # --------------------------------------------
+
             tender_id = extract_tender_id(
                 description
             )
+
+            # --------------------------------------------
+            # Filter
+            # --------------------------------------------
 
             accepted, score, reason = (
                 passes_filter(
@@ -262,7 +380,22 @@ def fetch_nupco():
             )
 
             if not accepted:
+
                 continue
+
+            # --------------------------------------------
+            # Category
+            # --------------------------------------------
+
+            category = detect_category(
+                title,
+                description,
+                "NUPCO",
+            )[0]
+
+            # --------------------------------------------
+            # Hash
+            # --------------------------------------------
 
             item_hash = create_hash(
                 title=title,
@@ -270,19 +403,37 @@ def fetch_nupco():
                 tender_id=tender_id,
             )
 
+            # --------------------------------------------
+            # Item
+            # --------------------------------------------
+
             results.append({
+
                 "title": title,
+
                 "description": description,
+
                 "url": url,
+
                 "source": "NUPCO",
+
                 "published": "",
+
                 "tender_id": tender_id,
+
+                "category": category,
+
                 "score": score,
+
                 "filter_reason": reason,
+
                 "hash": item_hash,
-                "collected_at": datetime.now(
-                    timezone.utc
-                ).isoformat(),
+
+                "collected_at": (
+                    datetime.now(
+                        timezone.utc
+                    ).isoformat()
+                ),
             })
 
     except Exception as e:
@@ -294,27 +445,44 @@ def fetch_nupco():
     return results
 
 
+# ============================================================
+# Collect everything
+# ============================================================
+
 def collect_all():
 
     all_items = []
+
+    # --------------------------------------------------------
+    # NUPCO
+    # --------------------------------------------------------
 
     print(
         "Collecting NUPCO..."
     )
 
+    nupco_items = fetch_nupco()
+
     all_items.extend(
-        fetch_nupco()
+        nupco_items
     )
 
     print(
-        f"NUPCO accepted: {len(all_items)}"
+        f"NUPCO accepted: "
+        f"{len(nupco_items)}"
     )
+
+    # --------------------------------------------------------
+    # Google News
+    # --------------------------------------------------------
 
     print(
         "Collecting Google News..."
     )
 
-    google_items = fetch_google_news()
+    google_items = (
+        fetch_google_news()
+    )
 
     print(
         f"Google News accepted: "
@@ -325,7 +493,10 @@ def collect_all():
         google_items
     )
 
-    # Remove duplicates within current run
+    # --------------------------------------------------------
+    # Final duplicate removal
+    # --------------------------------------------------------
+
     unique = {}
 
     for item in all_items:
@@ -333,6 +504,7 @@ def collect_all():
         key = item["hash"]
 
         if key not in unique:
+
             unique[key] = item
 
     return list(
