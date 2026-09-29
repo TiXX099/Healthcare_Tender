@@ -1,4 +1,46 @@
 {
+  "19709e7ca9dc34e7e8ee9aa13599743357daeef4417ea0213bbc1909fb045f2f": {
+    "title": "تقديم نتائج فحوصات مخبرية عن طريق إرسالها لمختبرات مرجعية",
+    "url": "https://www.nupco.com/ar/tender/%d8%aa%d9%82%d8%af%d9%8a%d9%85-%d9%86%d8%aa%d8%a7%d8%a6%d8%ac-%d9%81%d8%ad%d9%88%d8%b5%d8%a7%d8%aa-%d9%85%d8%ae%d8%a8%d8%b1%d9%8a%d8%a9-%d8%b9%d9%86-%d8%b7%d8%b1%d9%8a%d9%82-%d8%a5%d8%b1%d8%b3%d8%a7/",
+    "source": "NUPCO",
+    "tender_id": "NDP0903/26",
+    "saved_at": "2026-09-29T14:12:27.126469+00:00"
+  },
+  "19e46b60d7275011bd0e67b7a164228ee804697355d14c021f4ba0b095fdad56": {
+    "title": "SRM – تأمين مستلزمات طبية للسوق الإلكتروني عبر",
+    "url": "https://www.nupco.com/ar/tender/srm-%d8%aa%d8%a3%d9%85%d9%8a%d9%86-%d9%85%d8%b3%d8%aa%d9%84%d8%b2%d9%85%d8%a7%d8%aa-%d8%b7%d8%a8%d9%8a%d8%a9-%d9%84%d9%84%d8%b3%d9%88%d9%82-%d8%a7%d9%84%d8%a5%d9%84%d9%83%d8%aa%d8%b1%d9%88%d9%86/",
+    "source": "NUPCO",
+    "tender_id": "NDP0883/26",
+    "saved_at": "2026-09-29T14:12:23.683360+00:00"
+  },
+  "e9143f820ac5b36d9f468674d99794e2cf1e65596574fefc52cb506f0023a447": {
+    "title": "تأمين مستلزمات طبية – INUPCO",
+    "url": "https://www.nupco.com/ar/tender/%d8%aa%d8%a3%d9%85%d9%8a%d9%86-%d9%85%d8%b3%d8%aa%d9%84%d8%b2%d9%85%d8%a7%d8%aa-%d8%b7%d8%a8%d9%8a%d8%a9-inupco/",
+    "source": "NUPCO",
+    "tender_id": "NDP0877/26",
+    "saved_at": "2026-09-29T14:12:23.303582+00:00"
+  },
+  "42d17b3449969feed051205606fc819555ddc7366f4025e67629d41f054c7601": {
+    "title": "تأمين مستلزمات طبية منصة السوق الألكتروني – INUPCO",
+    "url": "https://www.nupco.com/ar/tender/%d8%aa%d8%a3%d9%85%d9%8a%d9%86-%d9%85%d8%b3%d8%aa%d9%84%d8%b2%d9%85%d8%a7%d8%aa-%d8%b7%d8%a8%d9%8a%d8%a9-%d9%85%d9%86%d8%b5%d8%a9-%d8%a7%d9%84%d8%b3%d9%88%d9%82-%d8%a7%d9%84%d8%a3%d9%84%d9%83%d8%aa/",
+    "source": "NUPCO",
+    "tender_id": "NDP0879/26",
+    "saved_at": "2026-09-29T14:12:22.830442+00:00"
+  },
+  "6caf67fd195ac8bd22f9d3827fecf74bd1b7d725987cfa4ea9726a7344ce9c96": {
+    "title": "تأمين مستلزمات طبية عامة",
+    "url": "https://www.nupco.com/ar/tender/%d8%aa%d8%a3%d9%85%d9%8a%d9%86-%d9%85%d8%b3%d8%aa%d9%84%d8%b2%d9%85%d8%a7%d8%aa-%d8%b7%d8%a8%d9%8a%d8%a9-%d8%b9%d8%a7%d9%85%d8%a9/",
+    "source": "NUPCO",
+    "tender_id": "NDP0892/26",
+    "saved_at": "2026-09-29T14:12:22.420094+00:00"
+  },
+  "515c3b955f998759e8755dc47e94fca68ca7bf0b37952e92296c5558f101b6d2": {
+    "title": "تأمين أجهزة طبية – رئاسة أمن الدولة",
+    "url": "https://www.nupco.com/ar/tender/%d8%aa%d8%a3%d9%85%d9%8a%d9%86-%d8%a3%d8%ac%d9%87%d8%b2%d8%a9-%d8%b7%d8%a8%d9%8a%d8%a9-%d8%b1%d8%a6%d8%a7%d8%b3%d8%a9-%d8%a3%d9%85%d9%86-%d8%a7%d9%84%d8%af%d9%88%d9%84%d8%a9/",
+    "source": "NUPCO",
+    "tender_id": "NDP0852/26",
+    "saved_at": "2026-09-29T14:12:22.040881+00:00"
+  },
   "d2aa4ff1b0308e48de746d967dbed584f75e55eadff412d880f2897f167991ad": {
     "title": "INUPCO – تأمين مستلزمات طبية للسوق الإلكتروني عبر",
     "url": "https://www.nupco.com/ar/tender/inupco-%d8%aa%d8%a3%d9%85%d9%8a%d9%86-%d9%85%d8%b3%d8%aa%d9%84%d8%b2%d9%85%d8%a7%d8%aa-%d8%b7%d8%a8%d9%8a%d8%a9-%d9%84%d9%84%d8%b3%d9%88%d9%82-%d8%a7%d9%84%d8%a5%d9%84%d9%83%d8%aa%d8%b1%d9%88%d9%86-2/",
